@@ -42,17 +42,26 @@ export class CommandCreateVideo extends ParentCommand {
   }
   execute = async() => {
     let body: Record<string, any> = {};
-    let status = 500;
     // const config = this.toFetchConfig();
     // const response = await fetch(config.url, config.init);
-    // body = await response.json();
-    // status = response.status;
     // if (!response.ok) {
-    //   return {success: false, newOrUpdatedResources: [], deletedResources: [], status};
+    //   return {success: false};
     // }
+    // body = await response.json();
+    // const status = response.status;
     await new Promise((resolve) => setTimeout(resolve, 5000));
     body = JSON.parse(this.toFetchConfig().init.body as string) as Record<string, any>;
-    status = 200;
-    return {success: true, updatedResources: [], newResources: [{resourceType: SyncResourceTypes.Video, localId: this.localId, data: body}], retrievedResources: [], deletedResources: [], status};
+    return {
+      success: true,
+      updatedResources: [],
+      newResources: [
+        {
+          resourceType: SyncResourceTypes.Video,
+          localId: this.localId,
+          data: body
+        }
+      ],
+      newSyncDate: new Date()
+    };
   }
 }

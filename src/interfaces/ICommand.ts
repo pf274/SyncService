@@ -5,14 +5,16 @@ export interface FetchConfig {
   init: RequestInit;
 }
 
+type ResourceArray = {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[];
+
 export interface ICommand {
   execute(): Promise<{
     success: boolean,
-    newResources?: {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[],
-    updatedResources?: {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[],
-    retrievedResources?: {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[],
-    deletedResources?: {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[],
-    status: number
+    newResources?: ResourceArray,
+    updatedResources?: ResourceArray,
+    retrievedResources?: ResourceArray,
+    deletedResources?: ResourceArray,
+    newSyncDate?: Date,
   }>;
   toFetchConfig(): FetchConfig;
   merge(other: ICommand): ICommand[];
