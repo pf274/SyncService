@@ -1,12 +1,11 @@
-import { FetchConfig, ICommand } from "../ICommand";
+import { FetchConfig, ICommand } from "../interfaces/ICommand";
 import { ParentCommand } from "../ParentCommand";
-import { SyncResourceTypes } from "../ISyncResource";
+import { SyncResourceTypes } from "../interfaces/ISyncResource";
+import { CommandNames } from "../interfaces/ISyncService";
 
-type CommandCreateVideoParams = {
+type CommandUpdateVideoParams = {
   title?: string;
   description?: string;
-  localId: string;
-  id?: string;
   collectionLocalIds?: string[];
   promptIds?: string[];
 }
@@ -14,8 +13,8 @@ type CommandCreateVideoParams = {
 
 export class CommandUpdateVideo extends ParentCommand {
 
-  constructor(params: CommandCreateVideoParams, commandId?: string) {
-    super(SyncResourceTypes.Video, 'update', params);
+  constructor(commandRecord: CommandUpdateVideoParams, localId: string, commandId?: string) {
+    super(SyncResourceTypes.Video, CommandNames.Update, localId, commandRecord);
     if (commandId) {
       this.commandId = commandId;
     }
@@ -29,12 +28,8 @@ export class CommandUpdateVideo extends ParentCommand {
       init: {
         method: 'POST',
         body: JSON.stringify({
-          title: this.title || 'New Video',
-          description: this.description || 'New Description',
+          ...this.commandRecord,
           localId: this.localId,
-          id: this.id,
-          collectionLocalIds: this.collectionLocalIds || [],
-          promptIds: this.promptIds || [],
         }),
         headers: {
           'Authorization': 'Bearer admin'
@@ -43,7 +38,7 @@ export class CommandUpdateVideo extends ParentCommand {
     }
     return config;
   }
-  async execute(): Promise<{success: boolean, newOrUpdatedResources: {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[], deletedResources: {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[], status: number}> {
+  execute = async() => {
     let body: Record<string, any> = {};
     let status = 500;
     // const config = this.toFetchConfig();
@@ -54,8 +49,8 @@ export class CommandUpdateVideo extends ParentCommand {
     //   return {success: false, newOrUpdatedResources: [], deletedResources: [], status};
     // }
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    body = {};
+    body = JSON.parse(this.toFetchConfig().init.body as string) as Record<string, any>;
     status = 200;
-    return {success: true, newOrUpdatedResources: [{resourceType: SyncResourceTypes.Video, localId: this.localId, data: body}], deletedResources: [], status};
+    return {success: true, newResources: [], updatedResources: [{resourceType: SyncResourceTypes.Video, localId: this.localId, data: body}], retrievedResources: [], deletedResources: [], status};
   }
 }

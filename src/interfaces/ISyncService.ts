@@ -5,14 +5,18 @@ export interface ISyncServiceInstance {
 }
 
 export interface ISyncService {
-  get(type: ISyncResource, localId: string): Promise<Record<string, any> | null>;
-  saveResource(type: ISyncResource, localId: string, data: Record<string, any>): Promise<void>;
-  saveQueues(): Promise<void>;
-  addWrite(resourceType: SyncResourceTypes, localId: string, command: ICommand): Promise<void>;
+  addCommand(resourceType: SyncResourceTypes, commandName: string, localId: string, commandRecord: Record<string, any>): Promise<void | null | Record<string, any>>;
   new (): ISyncServiceInstance;
   queue: ICommand[];
   errorQueue: ICommand[];
   inProgressQueue: ICommand[];
   syncInterval: NodeJS.Timeout | null;
   startSync(): void;
+}
+
+export enum CommandNames {
+  Create = 'create',
+  Read = 'read',
+  Update = 'update',
+  Delete = 'delete',
 }
