@@ -1,11 +1,13 @@
 import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand, ResourceArray } from "./interfaces/ICommand";
 import { SyncResourceTypes } from "./interfaces/ISyncResource";
-import { CommandNames, ISyncService, ISyncServiceInstance } from "./interfaces/ISyncService";
+import { CommandNames } from "./interfaces/ISyncService";
 import * as fs from 'fs';
 import { CommandCreateVideo } from "./commands/video/CommandCreateVideo";
 import { CommandUpdateVideo } from "./commands/video/CommandUpdateVideo";
 
-class SyncService implements ISyncServiceInstance {
+export class SyncService {
+  // TODO: replace fetch with Requester
+  // TODO: create command to get sync date from the cloud to pass into startSync
   static queue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
   static errorQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
   static inProgressQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
@@ -15,6 +17,7 @@ class SyncService implements ISyncServiceInstance {
   static savingQueuePromise = Promise.resolve();
   static completedCommands: number = 0;
   static syncDate: Date | null = null;
+  static online: boolean = true;
   /**
    * Saves a resource to a local JSON file.
    *
@@ -24,6 +27,7 @@ class SyncService implements ISyncServiceInstance {
    * @returns A promise that resolves when the save operation has completed.
    */
   private static async saveResource(resourceType: SyncResourceTypes, localId: string, data: Record<string, any>, synced: boolean): Promise<void> {
+    // TODO: implement AsyncStorage
     console.log(`Saving ${synced ? "synced " : ""}resource ${resourceType} with localId ${localId}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       await new Promise((resolve) => setTimeout(() => {
@@ -48,8 +52,10 @@ class SyncService implements ISyncServiceInstance {
     });
     return SyncService.savingDataPromise;
   }
-  private static async saveResources(resourceType: SyncResourceTypes, newResources: ResourceArray, synced: boolean) {
-    console.log(`Saving ${synced ? "synced " : " "}resources of type ${resourceType}`);
+  private static async saveResources(newResources: ResourceArray, synced: boolean) {
+    // TODO: implement AsyncStorage
+    const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
+    console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       await new Promise((resolve) => setTimeout(() => {
         const fileExists = fs.existsSync('./data.json');
@@ -60,10 +66,10 @@ class SyncService implements ISyncServiceInstance {
         } else {
           newData = {};
         }
-        if (!newData[resourceType]) {
-          newData[resourceType] = {};
-        }
-        for (const {localId, data} of newResources) {
+        for (const {localId, data, resourceType} of newResources) {
+          if (!newData[resourceType]) {
+            newData[resourceType] = {};
+          }
           if (!newData[resourceType][localId]) {
             newData[resourceType][localId] = {};
           }
@@ -84,6 +90,7 @@ class SyncService implements ISyncServiceInstance {
    * @returns A promise that resolves when the delete operation has completed.
    */
   private static async deleteResource(resourceType: SyncResourceTypes, localId: string): Promise<void> {
+    // TODO: implement AsyncStorage
     console.log(`Deleting resource ${resourceType} with localId ${localId}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       await new Promise((resolve) => setTimeout(() => {
@@ -117,6 +124,7 @@ class SyncService implements ISyncServiceInstance {
    * @returns A promise that resolves when the save operation has completed.
    */
   static async saveQueues(): Promise<void> {
+    // TODO: implement AsyncStorage
     SyncService.savingQueuePromise = SyncService.savingQueuePromise.then(async () => {
       await new Promise((resolve) => setTimeout(() => {
         const fileExists = fs.existsSync('./queue.json');
@@ -146,6 +154,7 @@ class SyncService implements ISyncServiceInstance {
    * @returns A promise that resolves when the load operation has completed.
    */
   static async loadQueues(): Promise<void> {
+    // TODO: implement AsyncStorage
     const fileExists = fs.existsSync('./queue.json');
     if (!fileExists) {
       return;
@@ -172,6 +181,7 @@ class SyncService implements ISyncServiceInstance {
     }
   }
   static async loadLocalSyncDate() {
+    // TODO: implement AsyncStorage
     const fileExists = fs.existsSync('./queue.json');
     if (!fileExists) {
       return new Date();
@@ -232,15 +242,11 @@ class SyncService implements ISyncServiceInstance {
     // handle read operations, don't add them to the queue
     if (command.commandName == CommandNames.Read) {
       return SyncService.read(command as IReadCommand);
-    } else if (command.commandName == CommandNames.Create) {
-      command = command as ICreateCommand;
-    } else if (command.commandName == CommandNames.Update) {
-      command = command as IUpdateCommand;
-    } else if (command.commandName == CommandNames.Delete) {
-      command = command as IDeleteCommand;
+    } else if (command.commandName == CommandNames.ReadAll) {
+      throw new Error('Cannot add get all resources command to queue. These must be run when the sync service starts.');
     }
-    let newCommand = command as ICreateCommand | IUpdateCommand | IDeleteCommand;
     // try to convert create commands to update commands for existing resources
+    let newCommand = command as ICreateCommand | IUpdateCommand | IDeleteCommand;
     const storedVersion = await SyncService.getLocalResource(newCommand.resourceType, newCommand.localId);
     if (storedVersion && newCommand.commandName == CommandNames.Create) {
       const potentialNewCommand = SyncService.generateCommand({resourceType: newCommand.resourceType, commandName: CommandNames.Update, commandRecord: newCommand.commandRecord, localId: newCommand.localId, commandId: newCommand.commandId});
@@ -250,7 +256,7 @@ class SyncService implements ISyncServiceInstance {
         throw new Error('Cannot add create command: resource already exists');
       }
     }
-    // handle write and delete operations
+    // handle write and delete operations locally
     if (newCommand.commandName == CommandNames.Delete) {
       await SyncService.deleteResource(newCommand.resourceType, newCommand.localId);
     } else {
@@ -268,6 +274,7 @@ class SyncService implements ISyncServiceInstance {
       newCommand.commandRecord = simplifiedVersion;
       await SyncService.saveResource(newCommand.resourceType, newCommand.localId, newCommand.commandRecord, false);
     }
+    // TODO: check if the command can be merged with any existing commands
     SyncService.queue.push(newCommand);
     await SyncService.saveQueues();
   }
@@ -312,7 +319,7 @@ class SyncService implements ISyncServiceInstance {
           const promises = initializationCommands.slice(0, SyncService.maxConcurrentRequests).map((command) => command.getCloudCopies().then(async (response) => {
             const retrievedRecords = response.retrievedRecords;
             if (retrievedRecords) {
-              await SyncService.saveResources(command.resourceType, retrievedRecords, true);
+              await SyncService.saveResources(retrievedRecords, true);
             }
             remainingCommands = remainingCommands.filter((otherCommand) => otherCommand.commandId !== command.commandId);
           }));
@@ -345,6 +352,20 @@ class SyncService implements ISyncServiceInstance {
    * If a command fails, it will be added to the error queue.
    */
   private static async sync(): Promise<void> {
+    // TODO: Replace with real offline detection
+    if (SyncService.online && Math.random() > 0.8) {
+      SyncService.online = false;
+      console.log('Device has gone offline. Pausing sync service.');
+      return;
+    } else if (!SyncService.online) {
+      if (Math.random() > 0.8) {
+        SyncService.online = true;
+        console.log('Device is back online. Resuming sync service.');
+      } else {
+        return;
+      }
+    }
+    // check if there are any commands to execute
     const remainingCommands = this.queue.length - this.inProgressQueue.length;
     console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
     if (this.queue.length === 0) {
@@ -384,7 +405,3 @@ class SyncService implements ISyncServiceInstance {
     }
   }
 }
-
-const SyncServiceStatic: ISyncService = SyncService;
-
-export {SyncServiceStatic as SyncService};

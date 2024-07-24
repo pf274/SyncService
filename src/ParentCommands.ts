@@ -43,7 +43,6 @@ export abstract class CreateCommand extends ParentCommand implements ICreateComm
     this.commandRecord = commandRecord;
   }
   abstract sync: ICreateCommand['sync'];
-  abstract createResource: ICreateCommand['createResource'];
 }
 
 export abstract class ReadCommand extends ParentCommand implements IReadCommand {
@@ -57,7 +56,6 @@ export abstract class UpdateCommand extends ParentCommand implements IUpdateComm
     this.commandRecord = commandRecord;
   }
   abstract sync: IUpdateCommand['sync'];
-  abstract updateResource: IUpdateCommand['updateResource'];
 }
 
 export abstract class DeleteCommand extends ParentCommand implements IDeleteCommand {
@@ -67,7 +65,6 @@ export abstract class DeleteCommand extends ParentCommand implements IDeleteComm
     this.commandRecord = commandRecord;
   }
   abstract sync: IDeleteCommand['sync'];
-  abstract deleteResource: IDeleteCommand['deleteResource'];
 }
 
 export abstract class GetAllResourcesOfTypeCommand extends ParentCommand implements IGetAllResourcesOfTypeCommand {

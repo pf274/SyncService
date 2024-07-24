@@ -56,9 +56,4 @@ export class CommandCreateVideo extends CreateCommand {
       newRecord: body
     };
   }
-  createResource = () => {
-    return {
-      ...this.commandRecord
-    }
-  }
 }

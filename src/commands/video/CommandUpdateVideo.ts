@@ -54,10 +54,4 @@ export class CommandUpdateVideo extends UpdateCommand {
       newRecord: body
     };
   }
-  updateResource = (existingRecord: Record<string, any>) => {
-    return {
-      ...existingRecord,
-      ...this.commandRecord
-    }
-  }
 }

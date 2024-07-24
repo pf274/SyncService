@@ -25,7 +25,6 @@ export interface ICreateCommand extends ICommand {
     newSyncDate: Date | null,
     newRecord: Record<string, any>,
   }>;
-  createResource(): Record<string, any>;
   commandRecord: Record<string, any>;
 }
 
@@ -34,7 +33,6 @@ export interface IUpdateCommand extends ICommand {
     newSyncDate: Date | null,
     newRecord: Record<string, any>,
   }>;
-  updateResource(existingRecord: Record<string, any>): Record<string, any>;
   commandRecord: Record<string, any>;
 }
 
@@ -42,7 +40,6 @@ export interface IDeleteCommand extends ICommand {
   sync(): Promise<{
     newSyncDate: Date | null,
   }>;
-  deleteResource(existingRecord: Record<string, any>): Record<string, any>;
   commandRecord: Record<string, any>;
 }
 
