@@ -185,7 +185,7 @@ export class SyncService {
     // TODO: implement AsyncStorage
     const fileExists = fs.existsSync('./queue.json');
     if (!fileExists) {
-      return new Date();
+      return;
     }
     const file = fs.readFileSync('./queue.json', 'utf-8');
     const data = JSON.parse(file);
@@ -370,7 +370,7 @@ export class SyncService {
     }
     // check if there are any commands to execute
     const remainingCommands = this.queue.length - this.inProgressQueue.length;
-    console.log({inProgress: this.inProgressQueue.length, remaining: remainingCommands, completed: this.completedCommands, errors: this.errorQueue.length});
+    console.table({inProgress: this.inProgressQueue.length, remaining: remainingCommands, completed: this.completedCommands, errors: this.errorQueue.length});
     // console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
     if (this.queue.length === 0) {
       return;

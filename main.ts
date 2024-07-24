@@ -8,6 +8,12 @@ async function getSyncDate() {
 
 async function test(): Promise<void> {
   const getAllVideos = new CommandGetAllVideos();
+  // TODO: Add a command to get the cloud sync date
+  // TODO: Add a command to save to AsyncStorage
+  // TODO: Add a command to get from AsyncStorage
+  // TODO: Add a command to check if the device is online
+  // TODO: Add a command to get the auth token
+  // TODO: Pass these functions into SyncService.startSync
   await SyncService.startSync(getSyncDate, [getAllVideos]);
   setTimeout(() => {
     const command1 = new CommandCreateVideo({fileType: 'mp4', title: 'Test', description: `test ${Math.floor(Math.random() * 1000)}`}, 'b185dce5-ee48-4673-b0c4-14f66bb4e064', );
