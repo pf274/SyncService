@@ -1,29 +1,69 @@
 {
   "Video": {
     "b185dce5-ee48-4673-b0c4-14f66bb4e064": {
-      "description": "test 702",
+      "fileType": "mp4",
+      "title": "Test",
+      "description": "test 117",
+      "mediaId": 125,
+      "ownerId": 9,
+      "mediaTypeId": 1,
+      "createdAt": "2024-07-24 20:10:35",
+      "updatedAt": "2024-07-24 21:17:43",
       "localId": "b185dce5-ee48-4673-b0c4-14f66bb4e064",
-      "title": "Test"
+      "collectionLocalIds": [],
+      "promptIds": []
     },
     "d2658bf0-403a-4017-a78e-803b3ce38c2e": {
-      "localId": "d2658bf0-403a-4017-a78e-803b3ce38c2e",
+      "fileType": "mp4",
       "title": "Test 2",
-      "description": "test 380"
+      "description": "test 427",
+      "mediaId": 126,
+      "ownerId": 9,
+      "mediaTypeId": 1,
+      "createdAt": "2024-07-24 20:10:35",
+      "updatedAt": "2024-07-24 21:17:43",
+      "localId": "d2658bf0-403a-4017-a78e-803b3ce38c2e",
+      "collectionLocalIds": [],
+      "promptIds": []
     },
     "c2ab9223-cc52-47fe-a9ae-39e2057a8b40": {
-      "localId": "c2ab9223-cc52-47fe-a9ae-39e2057a8b40",
+      "fileType": "mp4",
       "title": "Test 3",
-      "description": "the same"
+      "description": "the same",
+      "mediaId": 151,
+      "ownerId": 9,
+      "mediaTypeId": 1,
+      "createdAt": "2024-07-24 20:27:18",
+      "updatedAt": "2024-07-24 20:27:18",
+      "localId": "c2ab9223-cc52-47fe-a9ae-39e2057a8b40",
+      "collectionLocalIds": [],
+      "promptIds": []
     },
     "43ce81cc-ddf7-42dd-a7bc-c34f939911be": {
-      "localId": "43ce81cc-ddf7-42dd-a7bc-c34f939911be",
+      "fileType": "mp4",
       "title": "Test 4",
-      "description": "test 470"
+      "description": "test 785",
+      "mediaId": 136,
+      "ownerId": 9,
+      "mediaTypeId": 1,
+      "createdAt": "2024-07-24 20:21:06",
+      "updatedAt": "2024-07-24 21:17:43",
+      "localId": "43ce81cc-ddf7-42dd-a7bc-c34f939911be",
+      "collectionLocalIds": [],
+      "promptIds": []
     },
     "6c9dbdf5-c61c-463f-9353-83f4f4590632": {
-      "localId": "6c9dbdf5-c61c-463f-9353-83f4f4590632",
+      "fileType": "mp4",
       "title": "Test 5",
-      "description": "test 669"
+      "description": "test 610",
+      "mediaId": 138,
+      "ownerId": 9,
+      "mediaTypeId": 1,
+      "createdAt": "2024-07-24 20:21:06",
+      "updatedAt": "2024-07-24 21:17:44",
+      "localId": "6c9dbdf5-c61c-463f-9353-83f4f4590632",
+      "collectionLocalIds": [],
+      "promptIds": []
     }
   }
 }

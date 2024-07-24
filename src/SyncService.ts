@@ -1,14 +1,14 @@
-import { ICommand } from "./interfaces/ICommand";
+import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand, ResourceArray } from "./interfaces/ICommand";
 import { SyncResourceTypes } from "./interfaces/ISyncResource";
 import { CommandNames, ISyncService, ISyncServiceInstance } from "./interfaces/ISyncService";
 import * as fs from 'fs';
-import { CommandCreateVideo } from "./commands/CommandCreateVideo";
-import { CommandUpdateVideo } from "./commands/CommandUpdateVideo";
+import { CommandCreateVideo } from "./commands/video/CommandCreateVideo";
+import { CommandUpdateVideo } from "./commands/video/CommandUpdateVideo";
 
 class SyncService implements ISyncServiceInstance {
-  static queue: ICommand[] = [];
-  static errorQueue: ICommand[] = [];
-  static inProgressQueue: ICommand[] = [];
+  static queue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
+  static errorQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
+  static inProgressQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
   static syncInterval: NodeJS.Timeout | null = null;
   static maxConcurrentRequests = 3;
   static savingDataPromise = Promise.resolve();
@@ -23,7 +23,8 @@ class SyncService implements ISyncServiceInstance {
    * If the file does not exist, it will be created.
    * @returns A promise that resolves when the save operation has completed.
    */
-  private static async saveResource(type: SyncResourceTypes, localId: string, data: Record<string, any>): Promise<void> {
+  private static async saveResource(resourceType: SyncResourceTypes, localId: string, data: Record<string, any>, synced: boolean): Promise<void> {
+    console.log(`Saving ${synced ? "synced " : ""}resource ${resourceType} with localId ${localId}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       await new Promise((resolve) => setTimeout(() => {
         const fileExists = fs.existsSync('./data.json');
@@ -34,13 +35,72 @@ class SyncService implements ISyncServiceInstance {
         } else {
           newData = {};
         }
-        if (!newData[type]) {
-          newData[type] = {};
+        if (!newData[resourceType]) {
+          newData[resourceType] = {};
         }
-        if (!newData[type][localId]) {
-          newData[type][localId] = {};
+        if (!newData[resourceType][localId]) {
+          newData[resourceType][localId] = {};
         }
-        newData[type][localId] = {...newData[type][localId], ...data};
+        newData[resourceType][localId] = {...newData[resourceType][localId], ...data};
+        fs.writeFileSync('./data.json', JSON.stringify(newData, null, 2));
+        resolve(true);
+      }, 100));
+    });
+    return SyncService.savingDataPromise;
+  }
+  private static async saveResources(resourceType: SyncResourceTypes, newResources: ResourceArray, synced: boolean) {
+    console.log(`Saving ${synced ? "synced " : " "}resources of type ${resourceType}`);
+    SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
+      await new Promise((resolve) => setTimeout(() => {
+        const fileExists = fs.existsSync('./data.json');
+        let newData: Record<any, any>;
+        if (fileExists) {
+          const file = fs.readFileSync('./data.json', 'utf-8');
+          newData = JSON.parse(file);
+        } else {
+          newData = {};
+        }
+        if (!newData[resourceType]) {
+          newData[resourceType] = {};
+        }
+        for (const {localId, data} of newResources) {
+          if (!newData[resourceType][localId]) {
+            newData[resourceType][localId] = {};
+          }
+          newData[resourceType][localId] = {...newData[resourceType][localId], ...data};
+        }
+        fs.writeFileSync('./data.json', JSON.stringify(newData, null, 2));
+        resolve(true);
+      }, 100));
+    });
+    return SyncService.savingDataPromise;
+  }
+  /**
+   * Deletes a resource from the local JSON file.
+   *
+   * This function will wait for any previous save operation to complete before starting.
+   * It will read the existing data from the file, remove the specified resource, and then write it back to the file.
+   * If the resource is not found, this function will do nothing.
+   * @returns A promise that resolves when the delete operation has completed.
+   */
+  private static async deleteResource(resourceType: SyncResourceTypes, localId: string): Promise<void> {
+    console.log(`Deleting resource ${resourceType} with localId ${localId}`);
+    SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
+      await new Promise((resolve) => setTimeout(() => {
+        const fileExists = fs.existsSync('./data.json');
+        let newData: Record<any, any>;
+        if (fileExists) {
+          const file = fs.readFileSync('./data.json', 'utf-8');
+          newData = JSON.parse(file);
+        } else {
+          newData = {};
+        }
+        if (!newData[resourceType]) {
+          newData[resourceType] = {};
+        }
+        if (newData[resourceType][localId]) {
+          delete newData[resourceType][localId];
+        }
         fs.writeFileSync('./data.json', JSON.stringify(newData, null, 2));
         resolve(true);
       }, 100));
@@ -94,7 +154,7 @@ class SyncService implements ISyncServiceInstance {
     const data = JSON.parse(file);
     SyncService.queue = [];
     for (const commandRecord of data.queue) {
-      const commandInstance: ICommand | null = SyncService.generateCommand(commandRecord);
+      const commandInstance = SyncService.generateCommand(commandRecord);
       if (commandInstance) {
         SyncService.queue.push(commandInstance);
       } else {
@@ -103,13 +163,21 @@ class SyncService implements ISyncServiceInstance {
     }
     SyncService.errorQueue = [];
     for (const commandRecord of data.errorQueue) {
-      const commandInstance: ICommand | null = SyncService.generateCommand(commandRecord);
+      const commandInstance = SyncService.generateCommand(commandRecord);
       if (commandInstance) {
         SyncService.errorQueue.push(commandInstance);
       } else {
         console.error('Failed to restore command from JSON', commandRecord);
       }
     }
+  }
+  static async loadLocalSyncDate() {
+    const fileExists = fs.existsSync('./queue.json');
+    if (!fileExists) {
+      return new Date();
+    }
+    const file = fs.readFileSync('./queue.json', 'utf-8');
+    const data = JSON.parse(file);
     SyncService.syncDate = data.syncDate ? new Date(data.syncDate) : null;
   }
   /**
@@ -118,7 +186,7 @@ class SyncService implements ISyncServiceInstance {
    * If the command is not recognized, it will return null.
    * @returns The generated command instance, or null if the command record is not recognized
    */
-  static generateCommand({resourceType, commandName, commandRecord, localId, commandId} : {resourceType: SyncResourceTypes, commandName: CommandNames, commandRecord?: Record<string, any>, localId?: string, commandId?: string}): ICommand | null {
+  static generateCommand({resourceType, commandName, commandRecord, localId, commandId} : {resourceType: SyncResourceTypes, commandName: CommandNames, commandRecord?: Record<string, any>, localId?: string, commandId?: string}): IUpdateCommand | ICreateCommand | IDeleteCommand | null {
     if (resourceType == SyncResourceTypes.Video) {
       if (commandName == CommandNames.Create) {
         return new CommandCreateVideo(commandRecord as any, localId, commandId);
@@ -135,25 +203,17 @@ class SyncService implements ISyncServiceInstance {
    * If the cloud version is not found, the local version will be returned.
    * @returns The specified resource, or null if it is not found
    */
-  static async read(resourceType: SyncResourceTypes, localId: string): Promise<Record<string, any> | null> {
-    const command = SyncService.generateCommand({resourceType, commandName: CommandNames.Read, localId});
-    if (!command) {
-      console.error('Cannot add read command: unrecognized type/command name');
-      return null;
-    }
-    const {retrievedResources} = await command.execute();
-    let cloudVersion = null;
-    if (retrievedResources && retrievedResources.length > 0) {
-      cloudVersion = retrievedResources[0].data;
-    }
-    const localVersion = await SyncService.getLocalResource(resourceType, localId);
+  static async read(command: IReadCommand): Promise<Record<string, any> | null> {
+    const {retrievedRecords} = await command.getCloudCopy();
+    const cloudVersion = retrievedRecords && retrievedRecords.length > 0 ? retrievedRecords[0].data : null;
+    const localVersion = await SyncService.getLocalResource(command.resourceType, command.localId);
     if (!cloudVersion) {
       return localVersion;
     } else if (!localVersion) {
-      await SyncService.saveResource(resourceType, localId, cloudVersion);
+      await SyncService.saveResource(command.resourceType, command.localId, cloudVersion, true);
       return cloudVersion;
     } else if (cloudVersion?.updatedAt > localVersion?.updatedAt) {
-      await SyncService.saveResource(resourceType, localId, cloudVersion);
+      await SyncService.saveResource(command.resourceType, command.localId, cloudVersion, true);
       return cloudVersion;
     } else {
       return localVersion;
@@ -168,37 +228,47 @@ class SyncService implements ISyncServiceInstance {
    * If the command is a write operation, it will be added to the queue for processing.
    * @returns A promise that resolves with the result of the command, or null if the command is a write operation.
    */
-  static async addCommand(resourceType: SyncResourceTypes, commandName: CommandNames, localId?: string, commandRecord?: Record<string, any>): Promise<void | null | Record<string, any>> {
-    const storedVersion = localId ? await SyncService.getLocalResource(resourceType, localId) : null;
-    let newCommandName = commandName;
-    if (storedVersion && commandName == CommandNames.Create) {
-      newCommandName = CommandNames.Update;
-    }
+  static async addCommand(command: ICommand): Promise<void | null | Record<string, any>> {
     // handle read operations, don't add them to the queue
-    if (newCommandName == CommandNames.Read) {
-      return SyncService.read(resourceType, localId!);
+    if (command.commandName == CommandNames.Read) {
+      return SyncService.read(command as IReadCommand);
+    } else if (command.commandName == CommandNames.Create) {
+      command = command as ICreateCommand;
+    } else if (command.commandName == CommandNames.Update) {
+      command = command as IUpdateCommand;
+    } else if (command.commandName == CommandNames.Delete) {
+      command = command as IDeleteCommand;
     }
-    // handle write operations
-    if (!commandRecord) {
-      throw new Error('commandRecord is required for all commands except read');
-    }
-    const simplifiedVersion: Record<string, any> = commandRecord;
-    if (storedVersion) {
-      for (const key of Object.keys(simplifiedVersion)) {
-        if (storedVersion[key] === simplifiedVersion[key]) {
-          delete simplifiedVersion[key];
-        }
+    let newCommand = command as ICreateCommand | IUpdateCommand | IDeleteCommand;
+    // try to convert create commands to update commands for existing resources
+    const storedVersion = await SyncService.getLocalResource(newCommand.resourceType, newCommand.localId);
+    if (storedVersion && newCommand.commandName == CommandNames.Create) {
+      const potentialNewCommand = SyncService.generateCommand({resourceType: newCommand.resourceType, commandName: CommandNames.Update, commandRecord: newCommand.commandRecord, localId: newCommand.localId, commandId: newCommand.commandId});
+      if (potentialNewCommand) {
+        newCommand = potentialNewCommand as ICreateCommand | IUpdateCommand | IDeleteCommand;
+      } else {
+        throw new Error('Cannot add create command: resource already exists');
       }
     }
-    if (Object.keys(simplifiedVersion).length == 0) {
-      return;
+    // handle write and delete operations
+    if (newCommand.commandName == CommandNames.Delete) {
+      await SyncService.deleteResource(newCommand.resourceType, newCommand.localId);
+    } else {
+      const simplifiedVersion: Record<string, any> = newCommand.commandRecord;
+      if (storedVersion) {
+        for (const key of Object.keys(simplifiedVersion)) {
+          if (storedVersion[key] === simplifiedVersion[key]) {
+            delete simplifiedVersion[key];
+          }
+        }
+      }
+      if (Object.keys(simplifiedVersion).length == 0) {
+        return;
+      }
+      newCommand.commandRecord = simplifiedVersion;
+      await SyncService.saveResource(newCommand.resourceType, newCommand.localId, newCommand.commandRecord, false);
     }
-    const command = SyncService.generateCommand({commandRecord: simplifiedVersion, resourceType, commandName: newCommandName, localId});
-    if (!command) {
-      console.error('Cannot add write command: unrecognized type/command name');
-      return;
-    }
-    SyncService.queue.push(command);
+    SyncService.queue.push(newCommand);
     await SyncService.saveQueues();
   }
   /**
@@ -227,15 +297,45 @@ class SyncService implements ISyncServiceInstance {
    * This method will load the queues from the local JSON file, and then start the sync interval.
    * If the sync interval is already running, this method will do nothing.
    */
-  static async startSync(): Promise<void> {
-    await SyncService.loadQueues();
-    // TODO: Get sync_date from the cloud and if it isn't what we have, add a read command for all resources
+  static async startSync(getCloudSyncDate: () => Promise<Date>, initializationCommands?: IGetAllResourcesOfTypeCommand[]): Promise<void> {
     if (this.syncInterval) {
       return;
     }
+    console.log('Starting sync service...');
+    // make sure data is up to date
+    await SyncService.loadLocalSyncDate();
+    const cloudSyncDate = await getCloudSyncDate();
+    if (SyncService.syncDate !== cloudSyncDate) {
+      if (initializationCommands) {
+        let remainingCommands = [...initializationCommands];
+        do {
+          const promises = initializationCommands.slice(0, SyncService.maxConcurrentRequests).map((command) => command.getCloudCopies().then(async (response) => {
+            const retrievedRecords = response.retrievedRecords;
+            if (retrievedRecords) {
+              await SyncService.saveResources(command.resourceType, retrievedRecords, true);
+            }
+            remainingCommands = remainingCommands.filter((otherCommand) => otherCommand.commandId !== command.commandId);
+          }));
+          await Promise.all(promises);
+        } while (remainingCommands.length > 0);
+      }
+      SyncService.syncDate = cloudSyncDate;
+    }
+    await SyncService.loadQueues();
+    // check if error commands should be re-added to the queue
+    for (const command of SyncService.errorQueue) {
+      if (command.commandCreationDate.getTime() > SyncService.syncDate.getTime()) {
+        SyncService.queue.push(command);
+      } else {
+        SyncService.errorQueue = SyncService.errorQueue.filter((errorCommand) => errorCommand.commandId !== command.commandId);
+      }
+    }
+    SyncService.queue.sort((a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime());
+    await SyncService.saveQueues();
     this.syncInterval = setInterval(() => {
       this.sync();
     }, 1000);
+    console.log('Sync service started...');
   }
   /**
    * Executes the sync process every interval.
@@ -246,9 +346,7 @@ class SyncService implements ISyncServiceInstance {
    */
   private static async sync(): Promise<void> {
     const remainingCommands = this.queue.length - this.inProgressQueue.length;
-    if (this.inProgressQueue.length != 0 || remainingCommands != 0) {
-      console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
-    }
+    console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
     if (this.queue.length === 0) {
       return;
     }
@@ -265,28 +363,21 @@ class SyncService implements ISyncServiceInstance {
     }
     const commandsToRun = commandsEligible.slice(0, SyncService.maxConcurrentRequests - this.inProgressQueue.length);
     for (const command of commandsToRun) {
-      this.inProgressQueue.push(command as ICommand);
-      command.execute().then(async ({success, newResources, updatedResources, deletedResources, newSyncDate}) => {
-        if (success) {
-          if (newResources) {
-            for (const resource of newResources) {
-              await this.saveResource(command.resourceType, resource.localId, resource.data);
-            }
-          }
-          if (updatedResources) {
-            for (const resource of updatedResources) {
-              await this.saveResource(command.resourceType, resource.localId, resource.data);
-            }
-          }
-          this.queue = this.queue.filter((queuedCommand) => queuedCommand.commandId !== command.commandId);
-          this.inProgressQueue = this.inProgressQueue.filter((inProgressCommand) => inProgressCommand.commandId !== command.commandId);
+      this.inProgressQueue.push(command);
+      command.sync().then(async (response: any) => {
+        const newSyncDate = response.newSyncDate;
+        const newRecord = response?.newRecord;
+        this.queue = this.queue.filter((queuedCommand) => queuedCommand.commandId !== command.commandId);
+        this.inProgressQueue = this.inProgressQueue.filter((inProgressCommand) => inProgressCommand.commandId !== command.commandId);
+        if (newSyncDate) {
           this.completedCommands++;
-          if (newSyncDate) {
-            const mostRecentTime = Math.max(SyncService.syncDate?.getTime() || 0, newSyncDate.getTime());
-            SyncService.syncDate = new Date(mostRecentTime);
+          const mostRecentTime = Math.max(SyncService.syncDate?.getTime() || 0, newSyncDate.getTime());
+          SyncService.syncDate = new Date(mostRecentTime);
+          if (newRecord) {
+            await SyncService.saveResource(command.resourceType, command.localId, newRecord, true);
           }
         } else {
-          this.errorQueue.push(command as ICommand);
+          this.errorQueue.push(command);
         }
         await SyncService.saveQueues();
       });
