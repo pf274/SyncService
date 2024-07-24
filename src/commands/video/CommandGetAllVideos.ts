@@ -1,6 +1,6 @@
 import { FetchConfig, ICommand } from "../../interfaces/ICommand";
 import { SyncResourceTypes } from "../../interfaces/ISyncResource";
-import { GetAllResourcesOfTypeCommand } from "../../ParentCommands";
+import { GetAllResourcesOfTypeCommand } from "../ParentCommands";
 
 
 export class CommandGetAllVideos extends GetAllResourcesOfTypeCommand {
@@ -22,10 +22,10 @@ export class CommandGetAllVideos extends GetAllResourcesOfTypeCommand {
   getCloudCopies = async () => {
     const config = this.getFetchConfig();
     const response = await fetch(config.url, config.init);
+    const body: Record<string, any> = await response.json();
     if (!response.ok) {
       return { newSyncDate: null, retrievedRecords: [] };
     }
-    const body: Record<string, any> = await response.json();
     return {
       retrievedRecords: body.map((video: Record<string, any>) => {
         return {

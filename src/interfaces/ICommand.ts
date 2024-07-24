@@ -40,7 +40,6 @@ export interface IDeleteCommand extends ICommand {
   sync(): Promise<{
     newSyncDate: Date | null,
   }>;
-  commandRecord: Record<string, any>;
 }
 
 export interface IGetAllResourcesOfTypeCommand extends ICommand {

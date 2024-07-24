@@ -1,5 +1,5 @@
 import { FetchConfig, ICommand } from "../../interfaces/ICommand";
-import { CreateCommand } from "../../ParentCommands";
+import { CreateCommand, UpdateCommand } from "../ParentCommands";
 import { SyncResourceTypes } from "../../interfaces/ISyncResource";
 import { CommandNames } from "../../interfaces/ISyncService";
 import { generateUuid } from "../../../uuid";
@@ -22,6 +22,19 @@ export class CommandCreateVideo extends CreateCommand {
     }
   }
   merge(other: ICommand): ICommand[] {
+    if (other.localId === this.localId) {
+      if (other.commandName == CommandNames.Update) {
+        const otherCommand = other as UpdateCommand;
+        const newRecord: CreateVideoRecordType = {
+          ...this.commandRecord,
+          ...otherCommand.commandRecord
+        } as CreateVideoRecordType;
+        const newCreateCommand = new CommandCreateVideo(newRecord, this.localId, this.commandId);
+        return [newCreateCommand];
+      } else if (other.commandName == CommandNames.Delete) {
+        return [];
+      }
+    }
     return [this, other];
   }
   private getFetchConfig(): FetchConfig {
@@ -43,10 +56,10 @@ export class CommandCreateVideo extends CreateCommand {
   sync = async() => {
     const config = this.getFetchConfig();
     const response = await fetch(config.url, config.init);
+    const body: Record<string, any> = await response.json();
     if (!response.ok) {
       return {newSyncDate: null, newRecord: {}};
     }
-    const body: Record<string, any> = await response.json();
     const headers = this.getHeaders(response);
     if (!headers.sync_date) {
       throw new Error('Sync date not found in headers for CommandCreateVideo');

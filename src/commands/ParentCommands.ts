@@ -1,7 +1,7 @@
-import { FetchConfig, ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
-import { SyncResourceTypes } from "./interfaces/ISyncResource";
-import { generateUuid } from "../uuid";
-import { CommandNames } from "./interfaces/ISyncService";
+import { FetchConfig, ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "../interfaces/ICommand";
+import { SyncResourceTypes } from "../interfaces/ISyncResource";
+import { generateUuid } from "../../uuid";
+import { CommandNames } from "../interfaces/ISyncService";
 
 
 abstract class ParentCommand implements ICommand {
@@ -59,10 +59,8 @@ export abstract class UpdateCommand extends ParentCommand implements IUpdateComm
 }
 
 export abstract class DeleteCommand extends ParentCommand implements IDeleteCommand {
-  commandRecord: Record<string, any>;
-  constructor(resourceType: SyncResourceTypes, commandName: CommandNames, localId: string, commandRecord: Record<string, any>) {
+  constructor(resourceType: SyncResourceTypes, commandName: CommandNames, localId: string) {
     super(resourceType, commandName, localId);
-    this.commandRecord = commandRecord;
   }
   abstract sync: IDeleteCommand['sync'];
 }

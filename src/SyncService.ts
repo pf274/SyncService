@@ -13,6 +13,7 @@ export class SyncService {
   static inProgressQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
   static syncInterval: NodeJS.Timeout | null = null;
   static maxConcurrentRequests = 3;
+  static minCommandAgeInSeconds = 60;
   static savingDataPromise = Promise.resolve();
   static savingQueuePromise = Promise.resolve();
   static completedCommands: number = 0;
@@ -249,7 +250,8 @@ export class SyncService {
     let newCommand = command as ICreateCommand | IUpdateCommand | IDeleteCommand;
     const storedVersion = await SyncService.getLocalResource(newCommand.resourceType, newCommand.localId);
     if (storedVersion && newCommand.commandName == CommandNames.Create) {
-      const potentialNewCommand = SyncService.generateCommand({resourceType: newCommand.resourceType, commandName: CommandNames.Update, commandRecord: newCommand.commandRecord, localId: newCommand.localId, commandId: newCommand.commandId});
+      const createCommand = newCommand as ICreateCommand;
+      const potentialNewCommand = SyncService.generateCommand({resourceType: createCommand.resourceType, commandName: CommandNames.Update, commandRecord: createCommand.commandRecord, localId: createCommand.localId, commandId: createCommand.commandId});
       if (potentialNewCommand) {
         newCommand = potentialNewCommand as ICreateCommand | IUpdateCommand | IDeleteCommand;
       } else {
@@ -260,7 +262,8 @@ export class SyncService {
     if (newCommand.commandName == CommandNames.Delete) {
       await SyncService.deleteResource(newCommand.resourceType, newCommand.localId);
     } else {
-      const simplifiedVersion: Record<string, any> = newCommand.commandRecord;
+      const writeCommand = newCommand as ICreateCommand | IUpdateCommand;
+      const simplifiedVersion: Record<string, any> = writeCommand.commandRecord;
       if (storedVersion) {
         for (const key of Object.keys(simplifiedVersion)) {
           if (storedVersion[key] === simplifiedVersion[key]) {
@@ -271,8 +274,8 @@ export class SyncService {
       if (Object.keys(simplifiedVersion).length == 0) {
         return;
       }
-      newCommand.commandRecord = simplifiedVersion;
-      await SyncService.saveResource(newCommand.resourceType, newCommand.localId, newCommand.commandRecord, false);
+      writeCommand.commandRecord = simplifiedVersion;
+      await SyncService.saveResource(writeCommand.resourceType, writeCommand.localId, writeCommand.commandRecord, false);
     }
     // TODO: check if the command can be merged with any existing commands
     SyncService.queue.push(newCommand);
@@ -367,7 +370,8 @@ export class SyncService {
     }
     // check if there are any commands to execute
     const remainingCommands = this.queue.length - this.inProgressQueue.length;
-    console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
+    console.log({inProgress: this.inProgressQueue.length, remaining: remainingCommands, completed: this.completedCommands, errors: this.errorQueue.length});
+    // console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
     if (this.queue.length === 0) {
       return;
     }
@@ -378,7 +382,11 @@ export class SyncService {
     if (!commandsWaiting) {
       return;
     }
-    const commandsEligible = commandsWaiting.filter((command) => !this.inProgressQueue.map((command) => command.localId).includes(command.localId));
+    const commandsEligible = commandsWaiting.filter((command) => {
+      const localIdNotAlreadyInProgress = !this.inProgressQueue.map((command) => command.localId).includes(command.localId);
+      const isOlderThanMinCommandAge = command.commandCreationDate.getTime() < new Date().getTime() - (SyncService.minCommandAgeInSeconds * 1000);
+      return localIdNotAlreadyInProgress && isOlderThanMinCommandAge;
+    });
     if (commandsEligible.length == 0) {
       return;
     }

@@ -1,45 +1,27 @@
 import { FetchConfig, ICommand } from "../../interfaces/ICommand";
-import { UpdateCommand } from "../ParentCommands";
+import { DeleteCommand, UpdateCommand } from "../ParentCommands";
 import { SyncResourceTypes } from "../../interfaces/ISyncResource";
 import { CommandNames } from "../../interfaces/ISyncService";
 
-type UpdateVideoRecordType = {
-  title?: string;
-  description?: string;
-  collectionLocalIds?: string[];
-  promptIds?: string[];
-}
 
 
-export class CommandUpdateVideo extends UpdateCommand {
 
-  constructor(commandRecord: UpdateVideoRecordType, localId: string, commandId?: string) {
-    super(SyncResourceTypes.Video, CommandNames.Update, localId, commandRecord);
+export class CommandDeleteVideo extends DeleteCommand {
+
+  constructor(localId: string, commandId?: string) {
+    super(SyncResourceTypes.Video, CommandNames.Delete, localId);
     if (commandId) {
       this.commandId = commandId;
     }
   }
   merge(other: ICommand): ICommand[] {
-    if (other.localId === this.localId) {
-      if (other.commandName == CommandNames.Update) {
-        const otherCommand = other as UpdateCommand;
-        const newRecord: UpdateVideoRecordType = {
-          ...this.commandRecord,
-          ...otherCommand.commandRecord
-        } as UpdateVideoRecordType;
-        const newCreateCommand = new CommandUpdateVideo(newRecord, this.localId, this.commandId);
-        return [newCreateCommand];
-      } else if (other.commandName == CommandNames.Delete) {
-        return [other];
-      }
-    }
     return [this, other];
   }
   private getFetchConfig(): FetchConfig {
     const config: FetchConfig = {
-      url: `${this.getFullUrl('/video/update')}?localId=${this.localId}`,
+      url: `${this.getFullUrl('/video/delete')}?localId=${this.localId}`,
       init: {
-        method: 'POST',
+        method: 'DELETE',
         body: JSON.stringify({
           ...this.commandRecord,
           localId: this.localId,

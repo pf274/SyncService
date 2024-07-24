@@ -1,5 +1,5 @@
 import { FetchConfig, ICommand } from "../../interfaces/ICommand";
-import { ReadCommand } from "../../ParentCommands";
+import { ReadCommand } from "../ParentCommands";
 import { SyncResourceTypes } from "../../interfaces/ISyncResource";
 import { CommandNames } from "../../interfaces/ISyncService";
 
@@ -25,10 +25,11 @@ export class CommandReadVideo extends ReadCommand {
   getCloudCopy = async() => {
     const config = this.getFetchConfig();
     const response = await fetch(config.url, config.init);
+    const body = await response.json();
+    const data = body.videoInfo;
     if (!response.ok) {
       return {success: false, retrievedRecords: []};
     }
-    const data = (await response.json()).videoInfo;
     return {
       success: true,
       retrievedRecords: [
