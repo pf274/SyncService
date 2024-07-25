@@ -19,21 +19,22 @@ export class CommandUpdateVideo extends UpdateCommand {
       this.commandId = commandId;
     }
   }
-  merge(other: ICommand): ICommand[] {
-    if (other.localId === this.localId) {
-      if (other.commandName == CommandNames.Update) {
-        const otherCommand = other as UpdateCommand;
+  merge(nextCommand: ICommand): ICommand[] {
+    if (nextCommand.localId === this.localId) {
+      if (nextCommand.commandName == CommandNames.Update) {
+        const otherCommand = nextCommand as UpdateCommand;
         const newRecord: UpdateVideoRecordType = {
           ...this.commandRecord,
           ...otherCommand.commandRecord
         } as UpdateVideoRecordType;
         const newCreateCommand = new CommandUpdateVideo(newRecord, this.localId, this.commandId);
+        newCreateCommand.commandCreationDate = nextCommand.commandCreationDate;
         return [newCreateCommand];
-      } else if (other.commandName == CommandNames.Delete) {
-        return [other];
+      } else if (nextCommand.commandName == CommandNames.Delete) {
+        return [nextCommand];
       }
     }
-    return [this, other];
+    return [this, nextCommand];
   }
   private getFetchConfig(): FetchConfig {
     const config: FetchConfig = {

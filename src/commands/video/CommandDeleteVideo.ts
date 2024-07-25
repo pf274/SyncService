@@ -14,8 +14,8 @@ export class CommandDeleteVideo extends DeleteCommand {
       this.commandId = commandId;
     }
   }
-  merge(other: ICommand): ICommand[] {
-    return [this, other];
+  merge(nextCommand: ICommand): ICommand[] {
+    return [this, nextCommand];
   }
   private getFetchConfig(): FetchConfig {
     const config: FetchConfig = {

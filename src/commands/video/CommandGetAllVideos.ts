@@ -36,7 +36,7 @@ export class CommandGetAllVideos extends GetAllResourcesOfTypeCommand {
       })
     }
   }
-  merge(other: ICommand): ICommand[] {
-    return [this, other];
+  merge(nextCommand: ICommand): ICommand[] {
+    return [this, nextCommand];
   }
 }
