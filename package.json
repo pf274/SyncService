@@ -14,7 +14,10 @@
   "author": "Peter Fullmer <peterfullmer33@gmail.com> (https://pf274.github.io/resume/)",
   "main": "export.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "releasePatch": "npm run build && npm version patch && npm publish",
+    "releaseMinor": "npm run build && npm version minor && npm publish",
+    "releaseMajor": "npm run build && npm version major && npm publish"
   },
   "license": "ISC",
   "dependencies": {

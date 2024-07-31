@@ -200,7 +200,7 @@ export class SyncService {
    *
    * @returns A promise that resolves when the load operation has completed.
    */
-  static async loadState(): Promise<void> {
+  private static async loadState(): Promise<void> {
     const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-state`);
     SyncService.queue = [];
     for (const commandRecord of data.queue) {
@@ -264,12 +264,12 @@ export class SyncService {
 
   }
   /**
-   * Adds a command to the queue.
-   *
-   * This method will create a new command instance based on the specified details.
    * If the command is a read operation, it will be executed immediately and the result will be returned.
+   * 
    * If the command is a write operation, it will be added to the queue for processing.
-   * @returns A promise that resolves with the result of the command, or null if the command is a write operation.
+   * 
+   * For read operations, you can also use SyncService.read(command) to execute the command immediately.
+   * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
    */
   static async addCommand(command: ICommand): Promise<void | null | Record<string, any>> {
     // handle read operations, don't add them to the queue
