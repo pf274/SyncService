@@ -1,7 +1,7 @@
 {
   "name": "syncservice",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "export.ts",
   "scripts": {
     "build": "tsc"
   },
