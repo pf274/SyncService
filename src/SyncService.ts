@@ -7,6 +7,14 @@ import Ncrypt from "ncrypt-js";
 
 type saveToStorageHook = (name: string, data: Record<string, any>) => Promise<void>;
 type loadFromStorageHook = (name: string) => Promise<Record<string, any>>;
+/**
+ * Generates a command instance from the specified details.
+ * 
+ * This method should take the resource type, command name, and the command record and return a new instance of the appropriate command class.
+ * 
+ * If the command is not recognized, it should return null.
+ */
+type mapToCommandFunc = ({resourceType, commandName, commandRecord}: {resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>}) => IUpdateCommand | ICreateCommand | IDeleteCommand | null;
 
 export class SyncService {
   private static queue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
@@ -24,6 +32,7 @@ export class SyncService {
   private static storagePrefix: string = 'sync-service';
   private static ncrypt: Ncrypt | null = null;
   private static encrypt: boolean = false;
+  private static mapToCommand: mapToCommandFunc | null = null;
 
   static getConfig() {
     return {
@@ -201,11 +210,23 @@ export class SyncService {
    * @returns A promise that resolves when the load operation has completed.
    */
   private static async loadState(): Promise<void> {
+    if (!SyncService.mapToCommand) {
+      throw new Error('Map to command function is not set');
+    }
     const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-state`);
     SyncService.queue = [];
     for (const commandRecord of data.queue) {
-      const commandInstance = SyncService.generateCommand(commandRecord);
+      const commandInstance = SyncService.mapToCommand(commandRecord);
       if (commandInstance) {
+        if (commandRecord.commandId) {
+          commandInstance.commandId = commandRecord.commandId;
+        }
+        if (commandRecord.commandCreationDate) {
+          commandInstance.commandCreationDate = new Date(commandRecord.commandCreationDate);
+        }
+        if (commandRecord.localId) {
+          commandInstance.localId = commandRecord.localId;
+        }
         SyncService.queue.push(commandInstance);
       } else {
         console.error('Failed to restore command from JSON', commandRecord);
@@ -213,31 +234,23 @@ export class SyncService {
     }
     SyncService.errorQueue = [];
     for (const commandRecord of data.errorQueue) {
-      const commandInstance = SyncService.generateCommand(commandRecord);
+      const commandInstance = SyncService.mapToCommand(commandRecord);
       if (commandInstance) {
+        if (commandRecord.commandId) {
+          commandInstance.commandId = commandRecord.commandId;
+        }
+        if (commandRecord.commandCreationDate) {
+          commandInstance.commandCreationDate = new Date(commandRecord.commandCreationDate);
+        }
+        if (commandRecord.localId) {
+          commandInstance.localId = commandRecord.localId;
+        }
         SyncService.errorQueue.push(commandInstance);
       } else {
         console.error('Failed to restore command from JSON', commandRecord);
       }
     }
     SyncService.syncDate = data.syncDate ? new Date(data.syncDate) : null;
-  }
-  /**
-   * Generates a command instance from the specified details.
-   * This method will take a command record and return a new instance of the appropriate command class.
-   * If the command is not recognized, it will return null.
-   * @returns The generated command instance, or null if the command record is not recognized
-   */
-  static generateCommand({resourceType, commandName, commandRecord, localId, commandId} : {resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>, localId?: string, commandId?: string}): IUpdateCommand | ICreateCommand | IDeleteCommand | null {
-    // TODO: make the user pass in this function
-    if (resourceType == 'video') {
-      if (commandName == CommandNames.Create) {
-        return new CommandCreateVideo(commandRecord as any, localId, commandId);
-      } else if (commandName == CommandNames.Update) {
-        return new CommandUpdateVideo(commandRecord as any, localId!, commandId);
-      }
-    }
-    return null;
   }
   /**
    * Reads a resource from the cloud and updates the local version if out of date.
@@ -283,9 +296,12 @@ export class SyncService {
     const storedVersion = await SyncService.getLocalResource(newCommand.resourceType, newCommand.localId);
     if (storedVersion && newCommand.commandName == CommandNames.Create) {
       const createCommand = newCommand as ICreateCommand;
-      const potentialNewCommand = SyncService.generateCommand({resourceType: createCommand.resourceType, commandName: CommandNames.Update, commandRecord: createCommand.commandRecord, localId: createCommand.localId, commandId: createCommand.commandId});
+      const potentialNewCommand = SyncService.mapToCommand!({resourceType: createCommand.resourceType, commandName: CommandNames.Update, commandRecord: createCommand.commandRecord});
       if (potentialNewCommand) {
-        newCommand = potentialNewCommand as ICreateCommand | IUpdateCommand | IDeleteCommand;
+        potentialNewCommand.localId = createCommand.localId;
+        potentialNewCommand.commandCreationDate = createCommand.commandCreationDate;
+        potentialNewCommand.commandId = createCommand.commandId;
+        newCommand = potentialNewCommand as IUpdateCommand;
       } else {
         throw new Error('Cannot add create command: resource already exists');
       }
@@ -342,10 +358,11 @@ export class SyncService {
    * This method will load the queues from the local JSON file, and then start the sync interval.
    * If the sync interval is already running, this method will do nothing.
    */
-  static async startSync(getCloudSyncDateHook: () => Promise<Date>, initializationCommands?: IGetAllResourcesOfTypeCommand[]): Promise<void> {
+  static async startSync(getCloudSyncDateHook: () => Promise<Date>, mapToCommand: mapToCommandFunc, initializationCommands?: IGetAllResourcesOfTypeCommand[]): Promise<void> {
     if (this.syncInterval) {
       return;
     }
+    SyncService.mapToCommand = mapToCommand;
     console.log('Starting sync service...');
     // make sure data is up to date
     await SyncService.loadState();
