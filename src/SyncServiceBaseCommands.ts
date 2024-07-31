@@ -1,8 +1,7 @@
-import { FetchConfig, ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "../interfaces/ICommand";
-import { SyncResourceTypes } from "../interfaces/ISyncResource";
-import { generateUuid } from "../../uuid";
-import { CommandNames } from "../interfaces/CommandNames";
-
+import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
+import { SyncResourceTypes } from "./interfaces/ISyncResource";
+import { generateUuid } from "./uuid";
+import { CommandNames } from "./interfaces/CommandNames";
 
 abstract class ParentCommand implements ICommand {
   commandId: string;

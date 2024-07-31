@@ -1,11 +1,4 @@
-import { SyncResourceTypes } from "./ISyncResource";
-
-export interface FetchConfig {
-  url: string;
-  init: RequestInit;
-}
-
-export type ResourceArray = {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[];
+import { ISyncResource, SyncResourceTypes } from "./ISyncResource";
 
 export interface ICommand {
   canMerge(other: ICommand): boolean;
@@ -46,6 +39,6 @@ export interface IDeleteCommand extends ICommand {
 
 export interface IGetAllResourcesOfTypeCommand extends ICommand {
   getCloudCopies(): Promise<{
-    retrievedRecords: ResourceArray,
+    retrievedRecords: ISyncResource[],
   }>;
 }

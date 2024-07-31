@@ -1,9 +1,8 @@
-import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand, ResourceArray } from "./interfaces/ICommand";
-import { SyncResourceTypes } from "./interfaces/ISyncResource";
+import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
+import { ISyncResource, SyncResourceTypes } from "./interfaces/ISyncResource";
 import { CommandNames } from "./interfaces/CommandNames";
-import * as fs from 'fs';
-import { CommandCreateVideo } from "./commands/video/CommandCreateVideo";
-import { CommandUpdateVideo } from "./commands/video/CommandUpdateVideo";
+import { CommandCreateVideo } from "../test/commands/video/CommandCreateVideo";
+import { CommandUpdateVideo } from "../test/commands/video/CommandUpdateVideo";
 import Ncrypt from "ncrypt-js";
 
 type saveToStorageHook = (name: string, data: Record<string, any>) => Promise<void>;
@@ -45,7 +44,7 @@ export class SyncService {
   };
   private static saveToStorage: saveToStorageHook = localStorage ? async (name: string, data: Record<string, any>) => {
     if (SyncService.encrypt && SyncService.ncrypt) {
-      const encryptedData = await SyncService.ncrypt.encrypt(JSON.stringify(data));
+      const encryptedData = SyncService.ncrypt.encrypt(JSON.stringify(data));
       localStorage.setItem(name, encryptedData);
       return;
     }
@@ -134,7 +133,7 @@ export class SyncService {
     });
     return SyncService.savingDataPromise;
   }
-  private static async saveResources(newResources: ResourceArray, synced: boolean) {
+  private static async saveResources(newResources: ISyncResource[], synced: boolean) {
     const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
     console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
@@ -310,7 +309,7 @@ export class SyncService {
       writeCommand.commandRecord = simplifiedVersion;
       await SyncService.saveResource(writeCommand.resourceType, writeCommand.localId, writeCommand.commandRecord, false);
     }
-    // TODO: check if the command can be merged with any existing commands
+    // check if the command can be merged with any existing commands
     const mergeableCommand = SyncService.queue.find((otherCommand) => otherCommand.canMerge(newCommand));
     if (mergeableCommand) {
       const mergedCommand = mergeableCommand.mergeWithCommand(newCommand);
@@ -329,12 +328,7 @@ export class SyncService {
    * @returns The specified resource, or null if it is not found
    */
   private static async getLocalResource(type: SyncResourceTypes, localId: string): Promise<Record<string, any> | null> {
-    const fileExists = fs.existsSync('./data.json');
-    if (!fileExists) {
-      return null;
-    }
-    const file = fs.readFileSync('./data.json', {encoding: 'utf-8'});
-    const data = JSON.parse(file);
+    const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
     if (!data[type]) {
       return null;
     }
