@@ -4,7 +4,7 @@ import { CreateCommand, DeleteCommand, GetAllResourcesOfTypeCommand, ReadCommand
 export { SyncService };
 export * from './commands';
 
-const Commands = {
+export const Commands = {
   CreateCommand,
   ReadCommand,
   UpdateCommand,
