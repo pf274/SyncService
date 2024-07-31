@@ -2,7 +2,15 @@
   "name": "node-js-light-sync",
   "version": "1.0.0",
   "description": "A simple, lightweight synchronization service compatible with all JavaScript environments.",
-  "keywords": ["Synchronization", "React Native", "Data", "Lightweight", "JavaScript", "Node.js", "Simple"],
+  "keywords": [
+    "Synchronization",
+    "React Native",
+    "Data",
+    "Lightweight",
+    "JavaScript",
+    "Node.js",
+    "Simple"
+  ],
   "author": "Peter Fullmer <peterfullmer33@gmail.com> (https://pf274.github.io/resume/)",
   "main": "export.ts",
   "scripts": {
@@ -12,5 +20,8 @@
   "dependencies": {
     "ncrypt-js": "^2.1.1",
     "typescript": "^5.5.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.2"
   }
 }
