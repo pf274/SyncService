@@ -7,8 +7,8 @@ export class CommandReadVideo extends ReadCommand {
   constructor(localId: string) {
     super(SyncResourceTypes.Video, CommandNames.Read, localId);
   }
-  merge(other: ICommand): ICommand[] {
-    return [this, other];
+  merge(nextCommand: ICommand): ICommand[] {
+    return [this, nextCommand];
   }
   private getFetchConfig(): FetchConfig {
     const config: FetchConfig = {
