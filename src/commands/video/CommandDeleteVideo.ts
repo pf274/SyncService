@@ -1,7 +1,7 @@
 import { FetchConfig, ICommand } from "../../interfaces/ICommand";
-import { DeleteCommand, UpdateCommand } from "../ParentCommands";
+import { DeleteCommand } from "../SyncServiceBaseCommands";
 import { SyncResourceTypes } from "../../interfaces/ISyncResource";
-import { CommandNames } from "../../interfaces/ISyncService";
+import { CommandNames } from "../../interfaces/CommandNames";
 
 
 
@@ -14,8 +14,21 @@ export class CommandDeleteVideo extends DeleteCommand {
       this.commandId = commandId;
     }
   }
-  merge(nextCommand: ICommand): ICommand[] {
-    return [this, nextCommand];
+  canMerge(other: ICommand) {
+    if (other.localId === this.localId) {
+      if (other.commandName == CommandNames.Update) {
+        return true;
+      }
+    }
+    return false;
+  }
+  canCancelOut(other: ICommand): boolean {
+    if (other.localId === this.localId) {
+      if (other.commandName === CommandNames.Create) {
+        return true;
+      }
+    }
+    return false;
   }
   private getFetchConfig(): FetchConfig {
     const config: FetchConfig = {

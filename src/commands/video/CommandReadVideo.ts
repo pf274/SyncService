@@ -1,14 +1,17 @@
 import { FetchConfig, ICommand } from "../../interfaces/ICommand";
-import { ReadCommand } from "../ParentCommands";
+import { ReadCommand } from "../SyncServiceBaseCommands";
 import { SyncResourceTypes } from "../../interfaces/ISyncResource";
-import { CommandNames } from "../../interfaces/ISyncService";
+import { CommandNames } from "../../interfaces/CommandNames";
 
 export class CommandReadVideo extends ReadCommand {
   constructor(localId: string) {
     super(SyncResourceTypes.Video, CommandNames.Read, localId);
   }
-  merge(nextCommand: ICommand): ICommand[] {
-    return [this, nextCommand];
+  canMerge(other: ICommand) {
+    return false;
+  }
+  canCancelOut(other: ICommand): boolean {
+    return false;
   }
   private getFetchConfig(): FetchConfig {
     const config: FetchConfig = {

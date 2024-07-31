@@ -1,7 +1,7 @@
 import { FetchConfig, ICommand } from "../../interfaces/ICommand";
-import { UpdateCommand } from "../ParentCommands";
+import { UpdateCommand } from "../SyncServiceBaseCommands";
 import { SyncResourceTypes } from "../../interfaces/ISyncResource";
-import { CommandNames } from "../../interfaces/ISyncService";
+import { CommandNames } from "../../interfaces/CommandNames";
 
 type UpdateVideoRecordType = {
   title?: string;
@@ -19,22 +19,21 @@ export class CommandUpdateVideo extends UpdateCommand {
       this.commandId = commandId;
     }
   }
-  merge(nextCommand: ICommand): ICommand[] {
-    if (nextCommand.localId === this.localId) {
-      if (nextCommand.commandName == CommandNames.Update) {
-        const otherCommand = nextCommand as UpdateCommand;
-        const newRecord: UpdateVideoRecordType = {
-          ...this.commandRecord,
-          ...otherCommand.commandRecord
-        } as UpdateVideoRecordType;
-        const newCreateCommand = new CommandUpdateVideo(newRecord, this.localId, this.commandId);
-        newCreateCommand.commandCreationDate = nextCommand.commandCreationDate;
-        return [newCreateCommand];
-      } else if (nextCommand.commandName == CommandNames.Delete) {
-        return [nextCommand];
+  canMerge(other: ICommand) {
+    if (other.localId === this.localId) {
+      if (other.commandName == CommandNames.Update) {
+        return true;
       }
     }
-    return [this, nextCommand];
+    return false;
+  }
+  canCancelOut(other: ICommand): boolean {
+    if (other.localId === this.localId) {
+      if (other.commandName === CommandNames.Delete) {
+        return true;
+      }
+    }
+    return false;
   }
   private getFetchConfig(): FetchConfig {
     const config: FetchConfig = {

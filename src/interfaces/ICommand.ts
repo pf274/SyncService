@@ -8,16 +8,9 @@ export interface FetchConfig {
 export type ResourceArray = {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[];
 
 export interface ICommand {
-  /**
-   * Attempts to merge the current command with another command.
-   * 
-   * If they cancel out, this will return zero commands.
-   * 
-   * If they can merge, this will return one command.
-   * 
-   * If they cannot merge, this will return the two original commands.
-   */
-  merge(nextCommand: ICommand): ICommand[];
+  canMerge(other: ICommand): boolean;
+  canCancelOut(other: ICommand): boolean;
+  mergeWithCommand(other: ICommand): ICommand;
   commandId: string;
   resourceType: SyncResourceTypes;
   commandName: string;

@@ -1,24 +1,116 @@
 import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand, ResourceArray } from "./interfaces/ICommand";
 import { SyncResourceTypes } from "./interfaces/ISyncResource";
-import { CommandNames } from "./interfaces/ISyncService";
+import { CommandNames } from "./interfaces/CommandNames";
 import * as fs from 'fs';
 import { CommandCreateVideo } from "./commands/video/CommandCreateVideo";
 import { CommandUpdateVideo } from "./commands/video/CommandUpdateVideo";
+import Ncrypt from "ncrypt-js";
+
+type saveToStorageHook = (name: string, data: Record<string, any>) => Promise<void>;
+type loadFromStorageHook = (name: string) => Promise<Record<string, any>>;
 
 export class SyncService {
-  // TODO: replace fetch with Requester
-  // TODO: create command to get sync date from the cloud to pass into startSync
-  static queue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
-  static errorQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
-  static inProgressQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
-  static syncInterval: NodeJS.Timeout | null = null;
-  static maxConcurrentRequests = 3;
-  static minCommandAgeInSeconds = 60;
-  static savingDataPromise = Promise.resolve();
-  static savingQueuePromise = Promise.resolve();
-  static completedCommands: number = 0;
-  static syncDate: Date | null = null;
-  static online: boolean = true;
+  private static queue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
+  private static errorQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
+  private static inProgressQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
+  private static syncInterval: NodeJS.Timeout | null = null;
+  private static maxConcurrentRequests = 3;
+  private static minCommandAgeInSeconds = 60;
+  private static secondsBetweenSyncs = 1;
+  private static savingDataPromise = Promise.resolve();
+  private static savingQueuePromise = Promise.resolve();
+  private static completedCommands: number = 0;
+  private static syncDate: Date | null = null;
+  private static online: boolean = true;
+  private static storagePrefix: string = 'sync-service';
+  private static ncrypt: Ncrypt | null = null;
+  private static encrypt: boolean = false;
+
+  static getConfig() {
+    return {
+      maxConcurrentRequests: SyncService.maxConcurrentRequests,
+      minCommandAgeInSeconds: SyncService.minCommandAgeInSeconds,
+      secondsBetweenSyncs: SyncService.secondsBetweenSyncs,
+      storagePrefix: SyncService.storagePrefix,
+      encrypt: SyncService.encrypt,
+    };
+  }
+  private static getIsOnline: () => Promise<boolean> = async () => {
+    try {
+      const response = await fetch('https://www.google.com', { method: 'HEAD', mode: 'no-cors' });
+      return response.ok;
+    } catch (err) {
+      return false;
+    }
+  };
+  private static saveToStorage: saveToStorageHook = localStorage ? async (name: string, data: Record<string, any>) => {
+    if (SyncService.encrypt && SyncService.ncrypt) {
+      const encryptedData = await SyncService.ncrypt.encrypt(JSON.stringify(data));
+      localStorage.setItem(name, encryptedData);
+      return;
+    }
+    localStorage.setItem(name, JSON.stringify(data));
+  } : async (name: string, data: Record<string, any>) => {
+    throw new Error('No storage available'); 
+  };
+  private static loadFromStorage: loadFromStorageHook = localStorage ? async (name: string) => {
+    const data = localStorage.getItem(name);
+    if (!data) {
+      return {};
+    }
+    if (SyncService.encrypt && SyncService.ncrypt) {
+      const decryptedData = await SyncService.ncrypt.decrypt(data) as string;
+      return JSON.parse(decryptedData);
+    }
+  } : async (name: string) => {
+    throw new Error('No storage available'); 
+  };
+
+  static get config() {
+    return {
+      /**
+       * Test
+       * @param func 
+       */
+      setSaveToStorage: (func: saveToStorageHook) => {
+        SyncService.saveToStorage = func;
+      },
+      setLoadFromStorage: (func: loadFromStorageHook) => {
+        SyncService.loadFromStorage = func;
+      },
+      enableEncryption: (encryptionKey: string) => {
+        SyncService.encrypt = true;
+        SyncService.ncrypt = new Ncrypt(encryptionKey);
+      },
+      disableEncryption: () => {
+        SyncService.encrypt = false;
+        SyncService.ncrypt = null;
+      },
+      setIsOnline: (func: () => Promise<boolean>) => {
+        SyncService.getIsOnline = func;
+      },
+      setStoragePrefix: (prefix: string) => {
+        SyncService.storagePrefix = prefix;
+      },
+      setMinCommandAgeInSeconds: (seconds: number) => {
+        SyncService.minCommandAgeInSeconds = Math.max(0, seconds);
+      },
+      setMaxConcurrentRequests: (numConcurrentRequests: number) => {
+        SyncService.maxConcurrentRequests = Math.max(1, numConcurrentRequests);
+      },
+      setSecondsBetweenSyncs: (seconds: number) => {
+        SyncService.secondsBetweenSyncs = Math.max(1, seconds);
+        if (SyncService.syncInterval) {
+          clearInterval(SyncService.syncInterval);
+          SyncService.syncInterval = setInterval(() => {
+            this.sync();
+          }, SyncService.secondsBetweenSyncs * 1000);
+        }
+      }
+    }
+  }
+
+
   /**
    * Saves a resource to a local JSON file.
    *
@@ -28,18 +120,26 @@ export class SyncService {
    * @returns A promise that resolves when the save operation has completed.
    */
   private static async saveResource(resourceType: SyncResourceTypes, localId: string, data: Record<string, any>, synced: boolean): Promise<void> {
-    // TODO: implement AsyncStorage
     console.log(`Saving ${synced ? "synced " : ""}resource ${resourceType} with localId ${localId}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
-      await new Promise((resolve) => setTimeout(() => {
-        const fileExists = fs.existsSync('./data.json');
-        let newData: Record<any, any>;
-        if (fileExists) {
-          const file = fs.readFileSync('./data.json', 'utf-8');
-          newData = JSON.parse(file);
-        } else {
-          newData = {};
-        }
+      const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
+      if (!newData[resourceType]) {
+        newData[resourceType] = {};
+      }
+      if (!newData[resourceType][localId]) {
+        newData[resourceType][localId] = {};
+      }
+      newData[resourceType][localId] = {...newData[resourceType][localId], ...data};
+      await SyncService.saveToStorage(`${SyncService.storagePrefix}-data`, newData);
+    });
+    return SyncService.savingDataPromise;
+  }
+  private static async saveResources(newResources: ResourceArray, synced: boolean) {
+    const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
+    console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
+    SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
+      const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
+      for (const {localId, data, resourceType} of newResources) {
         if (!newData[resourceType]) {
           newData[resourceType] = {};
         }
@@ -47,38 +147,8 @@ export class SyncService {
           newData[resourceType][localId] = {};
         }
         newData[resourceType][localId] = {...newData[resourceType][localId], ...data};
-        fs.writeFileSync('./data.json', JSON.stringify(newData, null, 2));
-        resolve(true);
-      }, 100));
-    });
-    return SyncService.savingDataPromise;
-  }
-  private static async saveResources(newResources: ResourceArray, synced: boolean) {
-    // TODO: implement AsyncStorage
-    const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
-    console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
-    SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
-      await new Promise((resolve) => setTimeout(() => {
-        const fileExists = fs.existsSync('./data.json');
-        let newData: Record<any, any>;
-        if (fileExists) {
-          const file = fs.readFileSync('./data.json', 'utf-8');
-          newData = JSON.parse(file);
-        } else {
-          newData = {};
-        }
-        for (const {localId, data, resourceType} of newResources) {
-          if (!newData[resourceType]) {
-            newData[resourceType] = {};
-          }
-          if (!newData[resourceType][localId]) {
-            newData[resourceType][localId] = {};
-          }
-          newData[resourceType][localId] = {...newData[resourceType][localId], ...data};
-        }
-        fs.writeFileSync('./data.json', JSON.stringify(newData, null, 2));
-        resolve(true);
-      }, 100));
+      }
+      await SyncService.saveToStorage(`${SyncService.storagePrefix}-data`, newData);
     });
     return SyncService.savingDataPromise;
   }
@@ -91,57 +161,34 @@ export class SyncService {
    * @returns A promise that resolves when the delete operation has completed.
    */
   private static async deleteResource(resourceType: SyncResourceTypes, localId: string): Promise<void> {
-    // TODO: implement AsyncStorage
     console.log(`Deleting resource ${resourceType} with localId ${localId}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
-      await new Promise((resolve) => setTimeout(() => {
-        const fileExists = fs.existsSync('./data.json');
-        let newData: Record<any, any>;
-        if (fileExists) {
-          const file = fs.readFileSync('./data.json', 'utf-8');
-          newData = JSON.parse(file);
-        } else {
-          newData = {};
-        }
-        if (!newData[resourceType]) {
-          newData[resourceType] = {};
-        }
-        if (newData[resourceType][localId]) {
-          delete newData[resourceType][localId];
-        }
-        fs.writeFileSync('./data.json', JSON.stringify(newData, null, 2));
-        resolve(true);
-      }, 100));
+      const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
+      if (!newData[resourceType]) {
+        newData[resourceType] = {};
+      }
+      if (newData[resourceType][localId]) {
+        delete newData[resourceType][localId];
+      }
+      await SyncService.saveToStorage(`${SyncService.storagePrefix}-data`, newData);
     });
     return SyncService.savingDataPromise;
   }
   /**
-   * Saves the current state of the queues to a local JSON file.
+   * Saves the current state of the queues and sync date.
    *
    * This method will wait for any previous save operation to complete before starting.
-   * It reads the existing data from the file, merges it with the current state of the queues, and then writes it back to the file.
-   * If the file does not exist, it will be created.
+   * It reads the previously saved state (if it was saved before), merges it with the current state, and then writes it back to storage.
    *
    * @returns A promise that resolves when the save operation has completed.
    */
-  static async saveQueues(): Promise<void> {
-    // TODO: implement AsyncStorage
+  static async saveState(): Promise<void> {
     SyncService.savingQueuePromise = SyncService.savingQueuePromise.then(async () => {
-      await new Promise((resolve) => setTimeout(() => {
-        const fileExists = fs.existsSync('./queue.json');
-        let newData: Record<any, any>;
-        if (fileExists) {
-          const file = fs.readFileSync('./queue.json', 'utf-8');
-          newData = JSON.parse(file);
-        } else {
-          newData = {};
-        }
-        newData.queue = SyncService.queue;
-        newData.errorQueue = SyncService.errorQueue;
-        newData.syncDate = SyncService.syncDate;
-        fs.writeFileSync('./queue.json', JSON.stringify(newData, null, 2));
-        resolve(true);
-      }, 1000));
+      const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-state`);
+      newData.queue = SyncService.queue;
+      newData.errorQueue = SyncService.errorQueue;
+      newData.syncDate = SyncService.syncDate;
+      await SyncService.saveToStorage(`${SyncService.storagePrefix}-state`, newData);
     });
     return SyncService.savingQueuePromise;
   }
@@ -154,14 +201,8 @@ export class SyncService {
    *
    * @returns A promise that resolves when the load operation has completed.
    */
-  static async loadQueues(): Promise<void> {
-    // TODO: implement AsyncStorage
-    const fileExists = fs.existsSync('./queue.json');
-    if (!fileExists) {
-      return;
-    }
-    const file = fs.readFileSync('./queue.json', 'utf-8');
-    const data = JSON.parse(file);
+  static async loadState(): Promise<void> {
+    const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-state`);
     SyncService.queue = [];
     for (const commandRecord of data.queue) {
       const commandInstance = SyncService.generateCommand(commandRecord);
@@ -180,15 +221,6 @@ export class SyncService {
         console.error('Failed to restore command from JSON', commandRecord);
       }
     }
-  }
-  static async loadLocalSyncDate() {
-    // TODO: implement AsyncStorage
-    const fileExists = fs.existsSync('./queue.json');
-    if (!fileExists) {
-      return;
-    }
-    const file = fs.readFileSync('./queue.json', 'utf-8');
-    const data = JSON.parse(file);
     SyncService.syncDate = data.syncDate ? new Date(data.syncDate) : null;
   }
   /**
@@ -198,6 +230,7 @@ export class SyncService {
    * @returns The generated command instance, or null if the command record is not recognized
    */
   static generateCommand({resourceType, commandName, commandRecord, localId, commandId} : {resourceType: SyncResourceTypes, commandName: CommandNames, commandRecord?: Record<string, any>, localId?: string, commandId?: string}): IUpdateCommand | ICreateCommand | IDeleteCommand | null {
+    // TODO: make the user pass in this function
     if (resourceType == SyncResourceTypes.Video) {
       if (commandName == CommandNames.Create) {
         return new CommandCreateVideo(commandRecord as any, localId, commandId);
@@ -278,8 +311,16 @@ export class SyncService {
       await SyncService.saveResource(writeCommand.resourceType, writeCommand.localId, writeCommand.commandRecord, false);
     }
     // TODO: check if the command can be merged with any existing commands
-    SyncService.queue.push(newCommand);
-    await SyncService.saveQueues();
+    const mergeableCommand = SyncService.queue.find((otherCommand) => otherCommand.canMerge(newCommand));
+    if (mergeableCommand) {
+      const mergedCommand = mergeableCommand.mergeWithCommand(newCommand);
+      SyncService.queue = SyncService.queue.filter((otherCommand) => otherCommand.commandId !== mergeableCommand.commandId);
+      SyncService.queue.push(mergedCommand as ICreateCommand | IUpdateCommand | IDeleteCommand);
+      SyncService.queue.sort((a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime());
+    } else {
+      SyncService.queue.push(newCommand);
+    }
+    await SyncService.saveState();
   }
   /**
    * Retrieves a resource from the local JSON file.
@@ -307,14 +348,14 @@ export class SyncService {
    * This method will load the queues from the local JSON file, and then start the sync interval.
    * If the sync interval is already running, this method will do nothing.
    */
-  static async startSync(getCloudSyncDate: () => Promise<Date>, initializationCommands?: IGetAllResourcesOfTypeCommand[]): Promise<void> {
+  static async startSync(getCloudSyncDateHook: () => Promise<Date>, initializationCommands?: IGetAllResourcesOfTypeCommand[]): Promise<void> {
     if (this.syncInterval) {
       return;
     }
     console.log('Starting sync service...');
     // make sure data is up to date
-    await SyncService.loadLocalSyncDate();
-    const cloudSyncDate = await getCloudSyncDate();
+    await SyncService.loadState();
+    const cloudSyncDate = await getCloudSyncDateHook();
     if (SyncService.syncDate !== cloudSyncDate) {
       if (initializationCommands) {
         let remainingCommands = [...initializationCommands];
@@ -331,7 +372,7 @@ export class SyncService {
       }
       SyncService.syncDate = cloudSyncDate;
     }
-    await SyncService.loadQueues();
+    await SyncService.loadState();
     // check if error commands should be re-added to the queue
     for (const command of SyncService.errorQueue) {
       if (command.commandCreationDate.getTime() > SyncService.syncDate.getTime()) {
@@ -341,10 +382,10 @@ export class SyncService {
       }
     }
     SyncService.queue.sort((a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime());
-    await SyncService.saveQueues();
+    await SyncService.saveState();
     this.syncInterval = setInterval(() => {
       this.sync();
-    }, 1000);
+    }, SyncService.secondsBetweenSyncs * 1000);
     console.log('Sync service started...');
   }
   /**
@@ -355,18 +396,14 @@ export class SyncService {
    * If a command fails, it will be added to the error queue.
    */
   private static async sync(): Promise<void> {
-    // TODO: Replace with real offline detection
-    if (SyncService.online && Math.random() > 0.8) {
-      SyncService.online = false;
-      console.log('Device has gone offline. Pausing sync service.');
+    // check if device is online
+    const newIsOnline = await SyncService.getIsOnline();
+    if (newIsOnline !== SyncService.online) {
+      SyncService.online = newIsOnline;
+      console.log(`Device is ${SyncService.online ? 'on' : 'off'}line`);
+    }
+    if (!SyncService.online) {
       return;
-    } else if (!SyncService.online) {
-      if (Math.random() > 0.8) {
-        SyncService.online = true;
-        console.log('Device is back online. Resuming sync service.');
-      } else {
-        return;
-      }
     }
     // check if there are any commands to execute
     const remainingCommands = this.queue.length - this.inProgressQueue.length;
@@ -408,7 +445,7 @@ export class SyncService {
         } else {
           this.errorQueue.push(command);
         }
-        await SyncService.saveQueues();
+        await SyncService.saveState();
       });
     }
   }

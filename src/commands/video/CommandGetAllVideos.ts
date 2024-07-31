@@ -1,6 +1,6 @@
 import { FetchConfig, ICommand } from "../../interfaces/ICommand";
 import { SyncResourceTypes } from "../../interfaces/ISyncResource";
-import { GetAllResourcesOfTypeCommand } from "../ParentCommands";
+import { GetAllResourcesOfTypeCommand } from "../SyncServiceBaseCommands";
 
 
 export class CommandGetAllVideos extends GetAllResourcesOfTypeCommand {
@@ -36,7 +36,10 @@ export class CommandGetAllVideos extends GetAllResourcesOfTypeCommand {
       })
     }
   }
-  merge(nextCommand: ICommand): ICommand[] {
-    return [this, nextCommand];
+  canMerge(other: ICommand) {
+    return false;
+  }
+  canCancelOut(other: ICommand): boolean {
+    return false;
   }
 }
