@@ -19,11 +19,7 @@ abstract class ParentCommand implements ICommand {
   }
   abstract canMerge(other: ICommand): boolean;
   abstract canCancelOut(other: ICommand): boolean;
-  protected getBaseUrl(): string {
-    return `https://4byogxqqwi.execute-api.us-east-1.amazonaws.com/`
-  }
-  protected getFullUrl(endpoint: string) {
-    const baseUrl = new URL(this.getBaseUrl());
+  protected getFullUrl(baseUrl: string, endpoint: string) {
     return new URL(endpoint, baseUrl).toString();
   }
   protected getHeaders(response: Response) {
