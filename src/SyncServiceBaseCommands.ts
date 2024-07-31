@@ -1,16 +1,15 @@
 import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
-import { SyncResourceTypes } from "./interfaces/ISyncResource";
 import { generateUuid } from "./uuid";
 import { CommandNames } from "./interfaces/CommandNames";
 
 abstract class ParentCommand implements ICommand {
   commandId: string;
-  resourceType: SyncResourceTypes;
+  resourceType: string;
   commandName: string;
   localId: string;
   commandRecord: Record<string, any> | undefined = undefined;
   commandCreationDate: Date;
-  constructor(resourceType: SyncResourceTypes, commandName: CommandNames, localId: string) {
+  constructor(resourceType: string, commandName: CommandNames, localId: string) {
     this.resourceType = resourceType;
     this.commandName = commandName;
     this.localId = localId;
@@ -62,7 +61,7 @@ abstract class ParentCommand implements ICommand {
 
 export abstract class CreateCommand extends ParentCommand implements ICreateCommand {
   commandRecord: Record<string, any>;
-  constructor(resourceType: SyncResourceTypes, commandName: CommandNames, localId: string, commandRecord: Record<string, any>) {
+  constructor(resourceType: string, commandName: CommandNames, localId: string, commandRecord: Record<string, any>) {
     super(resourceType, commandName, localId);
     this.commandRecord = commandRecord;
   }
@@ -75,7 +74,7 @@ export abstract class ReadCommand extends ParentCommand implements IReadCommand 
 
 export abstract class UpdateCommand extends ParentCommand implements IUpdateCommand {
   commandRecord: Record<string, any>;
-  constructor(resourceType: SyncResourceTypes, commandName: CommandNames, localId: string, commandRecord: Record<string, any>) {
+  constructor(resourceType: string, commandName: CommandNames, localId: string, commandRecord: Record<string, any>) {
     super(resourceType, commandName, localId);
     this.commandRecord = commandRecord;
   }
@@ -83,14 +82,14 @@ export abstract class UpdateCommand extends ParentCommand implements IUpdateComm
 }
 
 export abstract class DeleteCommand extends ParentCommand implements IDeleteCommand {
-  constructor(resourceType: SyncResourceTypes, commandName: CommandNames, localId: string) {
+  constructor(resourceType: string, commandName: CommandNames, localId: string) {
     super(resourceType, commandName, localId);
   }
   abstract sync: IDeleteCommand['sync'];
 }
 
 export abstract class GetAllResourcesOfTypeCommand extends ParentCommand implements IGetAllResourcesOfTypeCommand {
-  constructor(resourceType: SyncResourceTypes) {
+  constructor(resourceType: string) {
     super(resourceType, CommandNames.ReadAll, generateUuid());
   }
   abstract getCloudCopies: IGetAllResourcesOfTypeCommand['getCloudCopies'];

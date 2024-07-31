@@ -26,6 +26,9 @@ npm install node-js-light-sync
 
 To use the Sync Service in your project, follow these steps:
 
+1. Create commands to use in your sync service
+Extend from one of the base commands provided by this package, such as `CreateCommand`. Implement the abstract methods.
+
 1. Import the Sync Service module into your code:
 
 ```javascript

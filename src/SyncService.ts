@@ -1,5 +1,5 @@
 import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
-import { ISyncResource, SyncResourceTypes } from "./interfaces/ISyncResource";
+import { ISyncResource } from "./interfaces/ISyncResource";
 import { CommandNames } from "./interfaces/CommandNames";
 import { CommandCreateVideo } from "../test/commands/video/CommandCreateVideo";
 import { CommandUpdateVideo } from "../test/commands/video/CommandUpdateVideo";
@@ -118,7 +118,7 @@ export class SyncService {
    * If the file does not exist, it will be created.
    * @returns A promise that resolves when the save operation has completed.
    */
-  private static async saveResource(resourceType: SyncResourceTypes, localId: string, data: Record<string, any>, synced: boolean): Promise<void> {
+  private static async saveResource(resourceType: string, localId: string, data: Record<string, any>, synced: boolean): Promise<void> {
     console.log(`Saving ${synced ? "synced " : ""}resource ${resourceType} with localId ${localId}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
@@ -159,7 +159,7 @@ export class SyncService {
    * If the resource is not found, this function will do nothing.
    * @returns A promise that resolves when the delete operation has completed.
    */
-  private static async deleteResource(resourceType: SyncResourceTypes, localId: string): Promise<void> {
+  private static async deleteResource(resourceType: string, localId: string): Promise<void> {
     console.log(`Deleting resource ${resourceType} with localId ${localId}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
@@ -228,9 +228,9 @@ export class SyncService {
    * If the command is not recognized, it will return null.
    * @returns The generated command instance, or null if the command record is not recognized
    */
-  static generateCommand({resourceType, commandName, commandRecord, localId, commandId} : {resourceType: SyncResourceTypes, commandName: CommandNames, commandRecord?: Record<string, any>, localId?: string, commandId?: string}): IUpdateCommand | ICreateCommand | IDeleteCommand | null {
+  static generateCommand({resourceType, commandName, commandRecord, localId, commandId} : {resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>, localId?: string, commandId?: string}): IUpdateCommand | ICreateCommand | IDeleteCommand | null {
     // TODO: make the user pass in this function
-    if (resourceType == SyncResourceTypes.Video) {
+    if (resourceType == 'video') {
       if (commandName == CommandNames.Create) {
         return new CommandCreateVideo(commandRecord as any, localId, commandId);
       } else if (commandName == CommandNames.Update) {
@@ -327,7 +327,7 @@ export class SyncService {
    * If the file does not exist, or the resource is not found, it will return null.
    * @returns The specified resource, or null if it is not found
    */
-  private static async getLocalResource(type: SyncResourceTypes, localId: string): Promise<Record<string, any> | null> {
+  private static async getLocalResource(type: string, localId: string): Promise<Record<string, any> | null> {
     const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
     if (!data[type]) {
       return null;

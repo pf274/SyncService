@@ -1,18 +1,18 @@
-import { ISyncResource, SyncResourceTypes } from "./ISyncResource";
+import { ISyncResource } from "./ISyncResource";
 
 export interface ICommand {
   canMerge(other: ICommand): boolean;
   canCancelOut(other: ICommand): boolean;
   mergeWithCommand(other: ICommand): ICommand;
   commandId: string;
-  resourceType: SyncResourceTypes;
+  resourceType: string;
   commandName: string;
   localId: string;
   commandCreationDate: Date;
 }
 
 export interface IReadCommand extends ICommand {
-  getCloudCopy(): Promise<{success: boolean, retrievedRecords: {resourceType: SyncResourceTypes, localId: string, data: Record<string, any>}[]}>;
+  getCloudCopy(): Promise<{success: boolean, retrievedRecords: {resourceType: string, localId: string, data: Record<string, any>}[]}>;
 }
 
 export interface ICreateCommand extends ICommand {
