@@ -102,8 +102,8 @@ import { SyncService } from 'node-js-light-sync';
 ### Configure the Sync Service
 The Sync Service has several configurable settings. Access these settings under `SyncService.config`.
 
-- `enableEncryption` - takes the encryption key as a parameter. Encryption is disabled by default.
-- `disableEncryption` - disables encryption. Encryption is disabled by default.
+- `enableEncryption` - takes the encryption key as a parameter. Encryption is disabled by default. Using this command will enable it.
+- `disableEncryption` - re-disables encryption.
 - `setOnlineChecker` - takes a function as a parameter that should return a boolean value for whether the client is online. A default function is provided.
 - `setLoadFromStorage` - takes a function as a parameter. This function should accept a `name` parameter specifying what it should load from your storage system, and should return whatever is stored under that name. If nothing is found, it should return an empty object.
 - `setMaxConcurrentRequests` - specify the number of API calls to run at once. Note that operations for the same resource will always be run sequentially and not concurrently. The default is 3 operations.
