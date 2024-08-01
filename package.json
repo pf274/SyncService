@@ -13,6 +13,9 @@
   ],
   "author": "Peter Fullmer <peterfullmer33@gmail.com> (https://pf274.github.io/resume/)",
   "main": "export.ts",
+  "exports": {
+    ".": "./dist/export.js"
+  },
   "scripts": {
     "clean": "rimraf ./dist",
     "build": "npm run clean && tsc",
