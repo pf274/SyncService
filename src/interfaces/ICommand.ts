@@ -1,6 +1,7 @@
 import { ISyncResource } from "./ISyncResource";
 
 export interface ICommand {
+  // TODO: remove localId from ICommand and add it to each resource being processed. Use ISyncResource.
   canMerge(other: ICommand): boolean;
   canCancelOut(other: ICommand): boolean;
   mergeWithCommand(other: ICommand): ICommand;

@@ -251,27 +251,29 @@ export class SyncService {
     SyncService.syncDate = data.syncDate ? new Date(data.syncDate) : null;
   }
   /**
-   * Reads a resource from the cloud and updates the local version if out of date.
-   * This method will create a read command and execute it immediately.
+   * Reads resources from the cloud and updates the local versions if out of date.
+   * This method will execute a read command immediately.
    * If the cloud version is newer than the local version, it will be saved to the local JSON file.
    * If the cloud version is not found, the local version will be returned.
-   * @returns The specified resource, or null if it is not found
+   * @returns The specified resources
    */
-  static async read(command: IReadCommand): Promise<Record<string, any> | null> {
+  static async read(command: IReadCommand): Promise<Record<string, any>[]> {
     const {retrievedRecords} = await command.getCloudCopy();
-    const cloudVersion = retrievedRecords && retrievedRecords.length > 0 ? retrievedRecords[0].data : null;
-    const localVersion = await SyncService.getLocalResource(command.resourceType, command.localId);
-    if (!cloudVersion) {
-      return localVersion;
-    } else if (!localVersion) {
-      await SyncService.saveResource(command.resourceType, command.localId, cloudVersion, true);
-      return cloudVersion;
-    } else if (cloudVersion?.updatedAt > localVersion?.updatedAt) {
-      await SyncService.saveResource(command.resourceType, command.localId, cloudVersion, true);
-      return cloudVersion;
-    } else {
-      return localVersion;
+    const recordsToReturn = [];
+    for (const record of retrievedRecords) {
+      const cloudVersion = record.data;
+      const localVersion = await SyncService.getLocalResource(command.resourceType, record.localId);
+      if (!localVersion) {
+        await SyncService.saveResource(command.resourceType, command.localId, cloudVersion, true);
+        recordsToReturn.push(cloudVersion);
+      } else if (cloudVersion.updatedAt > localVersion.updatedAt) {
+        await SyncService.saveResource(command.resourceType, command.localId, cloudVersion, true);
+        recordsToReturn.push(cloudVersion);
+      } else {
+        recordsToReturn.push(localVersion);
+      }
     }
+    return recordsToReturn;
 
   }
   /**
