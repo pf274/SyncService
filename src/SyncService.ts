@@ -14,7 +14,7 @@ type loadFromStorageHook = (name: string) => Promise<Record<string, any>>;
  * 
  * If the command is not recognized, it should return null.
  */
-type mapToCommandFunc = ({resourceType, commandName, commandRecord}: {resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>}) => IUpdateCommand | ICreateCommand | IDeleteCommand | null;
+type mapToCommandFunc = (resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>) => IUpdateCommand | ICreateCommand | IDeleteCommand | null;
 
 export class SyncService {
   private static queue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
@@ -22,8 +22,8 @@ export class SyncService {
   private static inProgressQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
   private static syncInterval: NodeJS.Timeout | null = null;
   private static maxConcurrentRequests = 3;
-  private static minCommandAgeInSeconds = 60;
-  private static secondsBetweenSyncs = 1;
+  private static minCommandAgeInSeconds = 0;
+  private static secondsBetweenSyncs = 5;
   private static savingDataPromise = Promise.resolve();
   private static savingQueuePromise = Promise.resolve();
   private static completedCommands: number = 0;
@@ -94,7 +94,7 @@ export class SyncService {
         SyncService.encrypt = false;
         SyncService.ncrypt = null;
       },
-      setIsOnline: (func: () => Promise<boolean>) => {
+      setOnlineChecker: (func: () => Promise<boolean>) => {
         SyncService.getIsOnline = func;
       },
       setStoragePrefix: (prefix: string) => {
@@ -216,7 +216,7 @@ export class SyncService {
     const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-state`);
     SyncService.queue = [];
     for (const commandRecord of data.queue) {
-      const commandInstance = SyncService.mapToCommand(commandRecord);
+      const commandInstance = SyncService.mapToCommand(commandRecord.resourceType, commandRecord.commandName, commandRecord?.commandRecord);
       if (commandInstance) {
         if (commandRecord.commandId) {
           commandInstance.commandId = commandRecord.commandId;
@@ -234,7 +234,7 @@ export class SyncService {
     }
     SyncService.errorQueue = [];
     for (const commandRecord of data.errorQueue) {
-      const commandInstance = SyncService.mapToCommand(commandRecord);
+      const commandInstance = SyncService.mapToCommand(commandRecord.resourceType, commandRecord.commandName, commandRecord?.commandRecord);
       if (commandInstance) {
         if (commandRecord.commandId) {
           commandInstance.commandId = commandRecord.commandId;
@@ -296,7 +296,7 @@ export class SyncService {
     const storedVersion = await SyncService.getLocalResource(newCommand.resourceType, newCommand.localId);
     if (storedVersion && newCommand.commandName == CommandNames.Create) {
       const createCommand = newCommand as ICreateCommand;
-      const potentialNewCommand = SyncService.mapToCommand!({resourceType: createCommand.resourceType, commandName: CommandNames.Update, commandRecord: createCommand.commandRecord});
+      const potentialNewCommand = SyncService.mapToCommand!(createCommand.resourceType, CommandNames.Update, createCommand.commandRecord);
       if (potentialNewCommand) {
         potentialNewCommand.localId = createCommand.localId;
         potentialNewCommand.commandCreationDate = createCommand.commandCreationDate;
@@ -432,7 +432,7 @@ export class SyncService {
     }
     const commandsEligible = commandsWaiting.filter((command) => {
       const localIdNotAlreadyInProgress = !this.inProgressQueue.map((command) => command.localId).includes(command.localId);
-      const isOlderThanMinCommandAge = command.commandCreationDate.getTime() < new Date().getTime() - (SyncService.minCommandAgeInSeconds * 1000);
+      const isOlderThanMinCommandAge = command.commandCreationDate.getTime() <= new Date().getTime() - (SyncService.minCommandAgeInSeconds * 1000);
       return localIdNotAlreadyInProgress && isOlderThanMinCommandAge;
     });
     if (commandsEligible.length == 0) {
