@@ -141,8 +141,6 @@ const getAllVideos = new CommandGetAllVideos();
 await SyncService.startSync(getSyncDate, commandMapper, [getAllVideos]);
 ```
 
-For more detailed usage instructions, please refer to the [GitHub Documentation](https://github.com/pf274/SyncService).
-
 ## Contributing
 
 Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request on the [GitHub repository](https://github.com/pf274/SyncService).
