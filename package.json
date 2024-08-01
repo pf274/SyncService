@@ -14,7 +14,7 @@
   "author": "Peter Fullmer <peterfullmer33@gmail.com> (https://pf274.github.io/resume/)",
   "main": "./dist/export.js",
   "types": "./dist/export.d.ts",
-  "expoorts": {
+  "exports": {
     ".": {
       "import": "./dist/export.js",
       "require": "./dist/export.js"
