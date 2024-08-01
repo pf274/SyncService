@@ -12,9 +12,12 @@
     "Simple"
   ],
   "author": "Peter Fullmer <peterfullmer33@gmail.com> (https://pf274.github.io/resume/)",
-  "main": "export.ts",
+  "main": "./dist/export.js",
   "exports": {
-    ".": "./dist/export.js"
+    ".": {
+      "import": "./dist/export.js",
+      "require": "./dist/export.js"
+    }
   },
   "scripts": {
     "clean": "rimraf ./dist",
