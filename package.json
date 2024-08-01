@@ -1,6 +1,6 @@
 {
   "name": "node-js-light-sync",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "A simple, lightweight synchronization service compatible with all JavaScript environments.",
   "keywords": [
     "Synchronization",
