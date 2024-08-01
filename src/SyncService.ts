@@ -3,8 +3,10 @@ import { ISyncResource } from "./interfaces/ISyncResource";
 import { CommandNames } from "./interfaces/CommandNames";
 import Ncrypt from "ncrypt-js";
 
-type saveToStorageHook = (name: string, data: Record<string, any>) => Promise<void>;
+type saveToStorageHook = (name: string, data: Record<string, any> | string) => Promise<void>;
+type saveToStorageHelperHook = (name: string, data: Record<string, any> | string) => Promise<void>;
 type loadFromStorageHook = (name: string) => Promise<Record<string, any>>;
+type loadFromStorageHelperHook = (name: string) => Promise<string | null>;
 /**
  * Generates a command instance from the specified details.
  * 
@@ -49,28 +51,45 @@ export class SyncService {
       return false;
     }
   };
-  private static saveToStorage: saveToStorageHook = localStorage ? async (name: string, data: Record<string, any>) => {
+  private static saveToStorage: saveToStorageHook = async (name: string, data: Record<string, any> | string) => {
     if (SyncService.encrypt && SyncService.ncrypt) {
-      const encryptedData = SyncService.ncrypt.encrypt(JSON.stringify(data));
-      localStorage.setItem(name, encryptedData);
+      const encryptedData = SyncService.ncrypt.encrypt(typeof data == 'string' ? data : JSON.stringify(data));
+      await SyncService.saveToStorageHelper(name, encryptedData);
       return;
     }
-    localStorage.setItem(name, JSON.stringify(data));
-  } : async (name: string, data: Record<string, any>) => {
-    throw new Error('No storage available'); 
-  };
+    await SyncService.saveToStorageHelper(name, data);
+  }
+  private static saveToStorageHelper: saveToStorageHelperHook = localStorage ? async (name, data) => {
+    if (typeof data === 'string') {
+      localStorage.setItem(name, data);
+    } else {
+      localStorage.setItem(name, JSON.stringify(data));
+    }
+  } : async (name, data) => {
+    throw new Error('No storage available');
+  }
   private static loadFromStorage: loadFromStorageHook = localStorage ? async (name: string) => {
-    const data = localStorage.getItem(name);
+    const data = await SyncService.loadFromStorageHelper(name);
     if (!data) {
       return {};
     }
     if (SyncService.encrypt && SyncService.ncrypt) {
-      const decryptedData = await SyncService.ncrypt.decrypt(data) as string;
+      const decryptedData = SyncService.ncrypt.decrypt(data as string) as string;
       return JSON.parse(decryptedData);
     }
+    return JSON.parse(data);
   } : async (name: string) => {
     throw new Error('No storage available'); 
   };
+  private static loadFromStorageHelper: loadFromStorageHelperHook = localStorage ? async (name) => {
+    const data = localStorage.getItem(name);
+    if (!data) {
+      return null;
+    }
+    return data;
+  } : async (name) => {
+    throw new Error('No storage available');
+  }
 
   static get config() {
     return {
@@ -78,11 +97,11 @@ export class SyncService {
        * Test
        * @param func 
        */
-      setSaveToStorage: (func: saveToStorageHook) => {
-        SyncService.saveToStorage = func;
+      setSaveToStorage: (func: (name: string, data: Record<string, any> | string) => Promise<void>) => {
+        SyncService.saveToStorageHelper = func;
       },
-      setLoadFromStorage: (func: loadFromStorageHook) => {
-        SyncService.loadFromStorage = func;
+      setLoadFromStorage: (func: (name: string) => Promise<string | null>) => {
+        SyncService.loadFromStorageHelper = func;
       },
       enableEncryption: (encryptionKey: string) => {
         SyncService.encrypt = true;
