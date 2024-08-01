@@ -1,8 +1,6 @@
 import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
 import { ISyncResource } from "./interfaces/ISyncResource";
 import { CommandNames } from "./interfaces/CommandNames";
-import { CommandCreateVideo } from "../test/commands/video/CommandCreateVideo";
-import { CommandUpdateVideo } from "../test/commands/video/CommandUpdateVideo";
 import Ncrypt from "ncrypt-js";
 
 type saveToStorageHook = (name: string, data: Record<string, any>) => Promise<void>;
