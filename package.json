@@ -20,6 +20,9 @@
       "require": "./dist/export.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "clean": "rimraf ./dist",
     "build": "npm run clean && tsc",
