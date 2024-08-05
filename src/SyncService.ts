@@ -136,7 +136,7 @@ export class SyncService {
    */
   private static async saveResources(newResources: ISyncResource[], synced: boolean) {
     const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
-    console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
+    // console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
       for (const {localId, data, resourceType} of newResources) {
@@ -168,7 +168,7 @@ export class SyncService {
    * @returns A promise that resolves when the delete operation has completed.
    */
   private static async deleteResource(resourceType: string, localId: string): Promise<void> {
-    console.log(`Deleting resource ${resourceType} with localId ${localId}`);
+    // console.log(`Deleting resource ${resourceType} with localId ${localId}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
       if (!newData[resourceType]) {
@@ -364,7 +364,7 @@ export class SyncService {
       return;
     }
     SyncService.mapToCommand = mapToCommand;
-    console.log('Starting sync service...');
+    // console.log('Starting sync service...');
     // make sure data is up to date
     await SyncService.loadState();
     const cloudSyncDate = await getCloudSyncDateHook();
@@ -398,7 +398,7 @@ export class SyncService {
     this.syncInterval = setInterval(() => {
       this.sync();
     }, SyncService.secondsBetweenSyncs * 1000);
-    console.log('Sync service started...');
+    // console.log('Sync service started...');
   }
   /**
    * Executes the sync process every interval.
@@ -412,7 +412,7 @@ export class SyncService {
     const newIsOnline = await SyncService.getIsOnline();
     if (newIsOnline !== SyncService.online) {
       SyncService.online = newIsOnline;
-      console.log(`Device is ${SyncService.online ? 'on' : 'off'}line`);
+      // console.log(`Device is ${SyncService.online ? 'on' : 'off'}line`);
     }
     if (!SyncService.online) {
       return;
