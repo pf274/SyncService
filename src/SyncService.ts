@@ -33,6 +33,7 @@ export class SyncService {
   private static ncrypt: Ncrypt | null = null;
   private static encrypt: boolean = false;
   private static mapToCommand: mapToCommandFunc | null = null;
+  private static resourceListeners: Record<string, (resources: ISyncResource[]) => any> = {};
 
   static getConfig() {
     return {
@@ -131,34 +132,22 @@ export class SyncService {
             this.sync();
           }, SyncService.secondsBetweenSyncs * 1000);
         }
+      },
+      setResourceListener: (resourceType: string, listener: (resources: ISyncResource[]) => any) => {
+        SyncService.resourceListeners[resourceType] = listener;
       }
     }
   }
 
 
   /**
-   * Saves a resource to a local JSON file.
+   * Saves resources to a local JSON file.
    *
    * This function will wait for any previous save operation to complete before starting.
    * It will read the existing data from the file, merge it with the new data, and then write it back to the file.
    * If the file does not exist, it will be created.
    * @returns A promise that resolves when the save operation has completed.
    */
-  private static async saveResource(resourceType: string, localId: string, data: Record<string, any>, synced: boolean): Promise<void> {
-    console.log(`Saving ${synced ? "synced " : ""}resource ${resourceType} with localId ${localId}`);
-    SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
-      const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
-      if (!newData[resourceType]) {
-        newData[resourceType] = {};
-      }
-      if (!newData[resourceType][localId]) {
-        newData[resourceType][localId] = {};
-      }
-      newData[resourceType][localId] = {...newData[resourceType][localId], ...data};
-      await SyncService.saveToStorage(`${SyncService.storagePrefix}-data`, newData);
-    });
-    return SyncService.savingDataPromise;
-  }
   private static async saveResources(newResources: ISyncResource[], synced: boolean) {
     const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
     console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
@@ -174,6 +163,13 @@ export class SyncService {
         newData[resourceType][localId] = {...newData[resourceType][localId], ...data};
       }
       await SyncService.saveToStorage(`${SyncService.storagePrefix}-data`, newData);
+      const listenersToRun = new Set(newResources.map((resource) => resource.resourceType));
+      for (const resourceType of listenersToRun) {
+        if (SyncService.resourceListeners[resourceType]) {
+          const callbackFunction = SyncService.resourceListeners[resourceType];
+          callbackFunction(newData[resourceType]);
+        }
+      }
     });
     return SyncService.savingDataPromise;
   }
@@ -283,10 +279,10 @@ export class SyncService {
       const cloudVersion = record.data;
       const localVersion = await SyncService.getLocalResource(command.resourceType, record.localId);
       if (!localVersion) {
-        await SyncService.saveResource(command.resourceType, command.localId, cloudVersion, true);
+        await SyncService.saveResources([{resourceType: command.resourceType, localId: command.localId, data: cloudVersion}], true);
         recordsToReturn.push(cloudVersion);
       } else if (cloudVersion.updatedAt > localVersion.updatedAt) {
-        await SyncService.saveResource(command.resourceType, command.localId, cloudVersion, true);
+        await SyncService.saveResources([{resourceType: command.resourceType, localId: command.localId, data: cloudVersion}], true);
         recordsToReturn.push(cloudVersion);
       } else {
         recordsToReturn.push(localVersion);
@@ -342,7 +338,7 @@ export class SyncService {
         return;
       }
       writeCommand.commandRecord = simplifiedVersion;
-      await SyncService.saveResource(writeCommand.resourceType, writeCommand.localId, writeCommand.commandRecord, false);
+      await SyncService.saveResources([{resourceType: writeCommand.resourceType, localId: writeCommand.localId, data: writeCommand.commandRecord}], false);
     }
     // check if the command can be merged with any existing commands
     const mergeableCommand = SyncService.queue.find((otherCommand) => otherCommand.canMerge(newCommand));
@@ -470,7 +466,7 @@ export class SyncService {
           const mostRecentTime = Math.max(SyncService.syncDate?.getTime() || 0, newSyncDate.getTime());
           SyncService.syncDate = new Date(mostRecentTime);
           if (newRecord) {
-            await SyncService.saveResource(command.resourceType, command.localId, newRecord, true);
+            await SyncService.saveResources([{resourceType: command.resourceType, localId: command.localId, data: newRecord}], true);
           }
         } else {
           this.errorQueue.push(command);
