@@ -112,6 +112,7 @@ The Sync Service has several configurable settings. Access these settings under 
 - `setSecondsBetweenSyncs` - specify how long the service should wait between syncs. The default is 5 seconds.
 - `setStoragePrefix` - specify what prefix to use for storage. The default is `sync-service`. This is useful if you want to allow multiple users to save data on the device, for example.
 - `setResourceListener` - allows you to specify a listener function that takes in the updated array of a resource type and does whatever you want with it. This is useful if you want to save the array in react state, for example.
+- `setDebug` - toggle debug messages. Default is false.
 
 ### Start Syncing
 Before starting your sync service, you'll need to provide two functions:

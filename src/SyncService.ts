@@ -33,6 +33,7 @@ export class SyncService {
   private static storagePrefix: string = 'sync-service';
   private static encrypt: boolean = false;
   private static mapToCommand: mapToCommandFunc | null = null;
+  private static debug: boolean = false;
   private static resourceListeners: Record<string, (resources: ISyncResource[]) => any> = {};
 
   static getConfig() {
@@ -121,6 +122,9 @@ export class SyncService {
       },
       setResourceListener: (resourceType: string, listener: (resources: ISyncResource[]) => any) => {
         SyncService.resourceListeners[resourceType] = listener;
+      },
+      setDebug(enabled: boolean) {
+        SyncService.debug = enabled;
       }
     }
   }
@@ -135,8 +139,10 @@ export class SyncService {
    * @returns A promise that resolves when the save operation has completed.
    */
   private static async saveResources(newResources: ISyncResource[], synced: boolean) {
-    // const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
-    // console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
+    if (SyncService.debug) {
+      const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
+      console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
+    }
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
       for (const {localId, data, resourceType} of newResources) {
@@ -168,7 +174,9 @@ export class SyncService {
    * @returns A promise that resolves when the delete operation has completed.
    */
   private static async deleteResource(resourceType: string, localId: string): Promise<void> {
-    // console.log(`Deleting resource ${resourceType} with localId ${localId}`);
+    if (SyncService.debug) {
+      console.log(`Deleting resource ${resourceType} with localId ${localId}`);
+    }
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
       if (!newData[resourceType]) {
@@ -364,7 +372,9 @@ export class SyncService {
       return;
     }
     SyncService.mapToCommand = mapToCommand;
-    // console.log('Starting sync service...');
+    if (SyncService.debug) {
+      console.log('Starting sync service...');
+    }
     // make sure data is up to date
     await SyncService.loadState();
     const cloudSyncDate = await getCloudSyncDateHook();
@@ -398,7 +408,9 @@ export class SyncService {
     this.syncInterval = setInterval(() => {
       this.sync();
     }, SyncService.secondsBetweenSyncs * 1000);
-    // console.log('Sync service started...');
+    if (SyncService.debug) {
+      console.log('Sync Service Started.');
+    }
   }
   /**
    * Executes the sync process every interval.
@@ -412,15 +424,18 @@ export class SyncService {
     const newIsOnline = await SyncService.getIsOnline();
     if (newIsOnline !== SyncService.online) {
       SyncService.online = newIsOnline;
-      // console.log(`Device is ${SyncService.online ? 'on' : 'off'}line`);
+      if (SyncService.debug) {
+        console.log(`Device is ${SyncService.online ? 'on' : 'off'}line`);
+      }
     }
     if (!SyncService.online) {
       return;
     }
     // check if there are any commands to execute
-    // const remainingCommands = this.queue.length - this.inProgressQueue.length;
-    // console.table({inProgress: this.inProgressQueue.length, remaining: remainingCommands, completed: this.completedCommands, errors: this.errorQueue.length});
-    // console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
+    if (SyncService.debug) {
+      const remainingCommands = this.queue.length - this.inProgressQueue.length;
+      console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
+    }
     if (this.queue.length === 0) {
       return;
     }
