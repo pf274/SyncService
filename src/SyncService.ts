@@ -214,7 +214,7 @@ export class SyncService {
     }
     const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-state`);
     SyncService.queue = [];
-    for (const commandRecord of data.queue) {
+    for (const commandRecord of data.queue || []) {
       const commandInstance = SyncService.mapToCommand(commandRecord.resourceType, commandRecord.commandName, commandRecord?.commandRecord);
       if (commandInstance) {
         if (commandRecord.commandId) {
@@ -232,7 +232,7 @@ export class SyncService {
       }
     }
     SyncService.errorQueue = [];
-    for (const commandRecord of data.errorQueue) {
+    for (const commandRecord of data.errorQueue || []) {
       const commandInstance = SyncService.mapToCommand(commandRecord.resourceType, commandRecord.commandName, commandRecord?.commandRecord);
       if (commandInstance) {
         if (commandRecord.commandId) {
