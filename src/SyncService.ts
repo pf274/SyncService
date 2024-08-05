@@ -341,7 +341,7 @@ export class SyncService {
           commandInstance.localId = commandRecord.localId;
         }
         SyncService.queue.push(commandInstance);
-      } else {
+      } else if (SyncService.debug) {
         console.error("Failed to restore command from JSON", commandRecord);
       }
     }
@@ -365,7 +365,7 @@ export class SyncService {
           commandInstance.localId = commandRecord.localId;
         }
         SyncService.errorQueue.push(commandInstance);
-      } else {
+      } else if (SyncService.debug) {
         console.error("Failed to restore command from JSON", commandRecord);
       }
     }
@@ -604,7 +604,9 @@ export class SyncService {
         console.log("Sync Service Started.");
       }
     } catch (err) {
-      console.error("Error starting sync service:", err);
+      if (SyncService.debug) {
+        console.error("Error starting sync service:", err);
+      }
     }
   }
   /**
@@ -704,7 +706,9 @@ export class SyncService {
         });
       }
     } catch (err) {
-      console.error("Error during sync:", err);
+      if (SyncService.debug) {
+        console.error("Error during sync:", err);
+      }
     }
   }
 }
