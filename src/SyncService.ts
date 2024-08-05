@@ -1,7 +1,7 @@
 import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
 import { ISyncResource } from "./interfaces/ISyncResource";
 import { CommandNames } from "./interfaces/CommandNames";
-import Ncrypt from "ncrypt-js";
+import CryptoJS from 'crypto-js';
 
 type saveToStorageHook = (name: string, data: Record<string, any> | string) => Promise<void>;
 type saveToStorageHelperHook = (name: string, data: Record<string, any> | string) => Promise<void>;
@@ -28,9 +28,9 @@ export class SyncService {
   private static savingQueuePromise = Promise.resolve();
   private static completedCommands: number = 0;
   private static syncDate: Date | null = null;
+  private static encryptionKey: string | null = null;
   private static online: boolean = true;
   private static storagePrefix: string = 'sync-service';
-  private static ncrypt: Ncrypt | null = null;
   private static encrypt: boolean = false;
   private static mapToCommand: mapToCommandFunc | null = null;
   private static resourceListeners: Record<string, (resources: ISyncResource[]) => any> = {};
@@ -53,8 +53,8 @@ export class SyncService {
     }
   };
   private static saveToStorage: saveToStorageHook = async (name: string, data: Record<string, any> | string) => {
-    if (SyncService.encrypt && SyncService.ncrypt) {
-      const encryptedData = SyncService.ncrypt.encrypt(typeof data == 'string' ? data : JSON.stringify(data));
+    if (SyncService.encrypt && SyncService.encryptionKey) {
+      const encryptedData = CryptoJS.AES.encrypt(typeof data == 'string' ? data : JSON.stringify(data), SyncService.encryptionKey);
       await SyncService.saveToStorageHelper(name, encryptedData);
       return;
     }
@@ -74,8 +74,8 @@ export class SyncService {
     if (!data) {
       return {};
     }
-    if (SyncService.encrypt && SyncService.ncrypt) {
-      const decryptedData = SyncService.ncrypt.decrypt(data as string) as string;
+    if (SyncService.encrypt && SyncService.encryptionKey && typeof data === 'string') {
+      const decryptedData = CryptoJS.AES.decrypt(data, SyncService.encryptionKey).toString(CryptoJS.enc.Utf8);
       return JSON.parse(decryptedData);
     }
     return JSON.parse(data);
@@ -106,11 +106,11 @@ export class SyncService {
       },
       enableEncryption: (encryptionKey: string) => {
         SyncService.encrypt = true;
-        SyncService.ncrypt = new Ncrypt(encryptionKey);
+        SyncService.encryptionKey = encryptionKey;
       },
       disableEncryption: () => {
         SyncService.encrypt = false;
-        SyncService.ncrypt = null;
+        SyncService.encryptionKey = null;
       },
       setOnlineChecker: (func: () => Promise<boolean>) => {
         SyncService.getIsOnline = func;
