@@ -135,7 +135,7 @@ export class SyncService {
    * @returns A promise that resolves when the save operation has completed.
    */
   private static async saveResources(newResources: ISyncResource[], synced: boolean) {
-    const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
+    // const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
     // console.log(`Saving ${synced ? "synced " : " "}resources of type${resourceTypes.length > 1 ? 's' : ''} ${resourceTypes.join(", ")}`);
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
@@ -418,8 +418,8 @@ export class SyncService {
       return;
     }
     // check if there are any commands to execute
-    const remainingCommands = this.queue.length - this.inProgressQueue.length;
-    console.table({inProgress: this.inProgressQueue.length, remaining: remainingCommands, completed: this.completedCommands, errors: this.errorQueue.length});
+    // const remainingCommands = this.queue.length - this.inProgressQueue.length;
+    // console.table({inProgress: this.inProgressQueue.length, remaining: remainingCommands, completed: this.completedCommands, errors: this.errorQueue.length});
     // console.log(`In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`);
     if (this.queue.length === 0) {
       return;
