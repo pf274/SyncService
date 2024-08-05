@@ -60,16 +60,10 @@ export class SyncService {
     }
     await SyncService.saveToStorageHelper(name, data);
   }
-  private static saveToStorageHelper: saveToStorageHelperHook = localStorage ? async (name, data) => {
-    if (typeof data === 'string') {
-      localStorage.setItem(name, data);
-    } else {
-      localStorage.setItem(name, JSON.stringify(data));
-    }
-  } : async (name, data) => {
+  private static saveToStorageHelper: saveToStorageHelperHook = async (name, data) => {
     throw new Error('No storage available');
   }
-  private static loadFromStorage: loadFromStorageHook = localStorage ? async (name: string) => {
+  private static loadFromStorage: loadFromStorageHook = async (name: string) => {
     const data = await SyncService.loadFromStorageHelper(name);
     if (!data) {
       return {};
@@ -79,16 +73,8 @@ export class SyncService {
       return JSON.parse(decryptedData);
     }
     return JSON.parse(data);
-  } : async (name: string) => {
-    throw new Error('No storage available'); 
-  };
-  private static loadFromStorageHelper: loadFromStorageHelperHook = localStorage ? async (name) => {
-    const data = localStorage.getItem(name);
-    if (!data) {
-      return null;
-    }
-    return data;
-  } : async (name) => {
+  }
+  private static loadFromStorageHelper: loadFromStorageHelperHook = async (name) => {
     throw new Error('No storage available');
   }
 
