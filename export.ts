@@ -1,7 +1,13 @@
 import { CommandNames } from "./src/interfaces/CommandNames";
 import { SyncService } from "./src/SyncService";
-import { CreateCommand, DeleteCommand, GetAllResourcesOfTypeCommand, ReadCommand, UpdateCommand } from "./src/SyncServiceBaseCommands";
-import { ICommand } from './src/interfaces/ICommand';
+import {
+  CreateCommand,
+  DeleteCommand,
+  GetAllResourcesOfTypeCommand,
+  ReadCommand,
+  UpdateCommand,
+} from "./src/SyncServiceBaseCommands";
+import { ICommand } from "./src/interfaces/ICommand";
 
 export {
   SyncService,
@@ -11,7 +17,7 @@ export {
   ReadCommand,
   UpdateCommand,
   DeleteCommand,
-  GetAllResourcesOfTypeCommand
+  GetAllResourcesOfTypeCommand,
 };
 
 const Commands = {
@@ -19,7 +25,7 @@ const Commands = {
   ReadCommand,
   UpdateCommand,
   DeleteCommand,
-  GetAllResourcesOfTypeCommand
+  GetAllResourcesOfTypeCommand,
 };
 
 export default { SyncService, Commands };

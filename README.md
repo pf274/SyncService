@@ -12,7 +12,7 @@ The Sync Service npm package is a powerful tool for synchronizing data across mu
 
 - Scalability: The Sync Service is built to handle large amounts of data and can scale effortlessly as your application grows. It also allows synchronization operations to be merged together to save bandwidth. For instance, creating and deleting the same resource will cancel out.
 
-- Offline-Compatible: The Sync Service is meant for offline compatibility, meaning your device should be able to run completely offline, then sync back to the cloud once your connection is restored. 
+- Offline-Compatible: The Sync Service is meant for offline compatibility, meaning your device should be able to run completely offline, then sync back to the cloud once your connection is restored.
 
 ## Installation
 
@@ -27,14 +27,17 @@ npm install node-js-light-sync
 To use the Sync Service in your project, follow these steps:
 
 ### Configure backend
+
 Ensure that your backend service keeps track of when your user last made a change that should be synced, and returns that value when it is updated.
 
 For example, say I have a `user` table with a `syncDate` property. When the user creates or edits a file, this value is updated and also returned in the api call.
 
 ### Create commands
+
 Create commands to use in your sync service.
 
 For each command, extend from one of the base commands provided by this package, such as `CreateCommand`. Implement the abstract methods.
+
 ```javascript
 export class CommandCreateVideo extends CreateCommand {
   constructor(commandRecord: Record<string, any>, localId?: string) {
@@ -90,16 +93,19 @@ export class CommandCreateVideo extends CreateCommand {
   }
 }
 ```
+
 The sync method should always return an object with the key/value pairs `newSyncDate` and `newRecord`. If the api call fails, return a newSyncDate of `null` and an empty object for `newRecord`.
 
 ### Import SyncService
+
 Import the Sync Service module into your code
 
 ```javascript
-import { SyncService } from 'node-js-light-sync';
+import { SyncService } from "node-js-light-sync";
 ```
 
 ### Configure the Sync Service
+
 The Sync Service has several configurable settings. Access these settings under `SyncService.config`.
 
 - `enableEncryption` - takes the encryption key as a parameter. Encryption is disabled by default. Using this command will enable it.
@@ -115,11 +121,14 @@ The Sync Service has several configurable settings. Access these settings under 
 - `setDebug` - toggle debug messages. Default is false.
 
 ### Start Syncing
+
 Before starting your sync service, you'll need to provide two functions:
+
 - `getSyncDate` - should return the user's sync date from your server, or null if the call fails.
 - `commandMapper` - should take in the resource type as a string, the command name, and an optional commandRecord. It should return either an instance of one of your command classes, or null.
 
 Example of a commandMapper:
+
 ```javascript
 function commandMapper(resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>) {
   if (resourceType === 'Video') {
@@ -132,6 +141,7 @@ function commandMapper(resourceType: string, commandName: CommandNames, commandR
 ```
 
 Finally, start the sync service!
+
 ```javascript
 sync.startSync(getSyncDate, commandMapper);
 ```
