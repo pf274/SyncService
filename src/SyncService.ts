@@ -192,7 +192,7 @@ export class SyncService {
       for (const resourceType of listenersToRun) {
         if (SyncService.resourceListeners[resourceType]) {
           const callbackFunction = SyncService.resourceListeners[resourceType];
-          callbackFunction(newData[resourceType]);
+          callbackFunction(Object.values(newData[resourceType]));
         }
       }
     });
@@ -221,7 +221,7 @@ export class SyncService {
       await SyncService.saveToStorage(`${SyncService.storagePrefix}-data`, newData);
       if (SyncService.resourceListeners[resourceType]) {
         const callbackFunction = SyncService.resourceListeners[resourceType];
-        callbackFunction(newData[resourceType]);
+        callbackFunction(Object.values(newData[resourceType]));
       }
     });
     return SyncService.savingDataPromise;
