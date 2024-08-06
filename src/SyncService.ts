@@ -24,7 +24,8 @@ type loadFromStorageHelperHook = (name: string) => Promise<string | null>;
 type mapToCommandFunc = (
   resourceType: string,
   commandName: CommandNames,
-  commandRecord?: Record<string, any>
+  commandRecord?: Record<string, any>,
+  localId?: string
 ) => IUpdateCommand | ICreateCommand | IDeleteCommand | null;
 
 export class SyncService {
@@ -236,10 +237,11 @@ export class SyncService {
    */
   static async saveState(): Promise<void> {
     SyncService.savingQueuePromise = SyncService.savingQueuePromise.then(async () => {
-      const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-state`);
-      newData.queue = SyncService.queue;
-      newData.errorQueue = SyncService.errorQueue;
-      newData.syncDate = SyncService.syncDate;
+      const newData = {
+        queue: SyncService.queue,
+        errorQueue: SyncService.errorQueue,
+        syncDate: SyncService.syncDate,
+      };
       await SyncService.saveToStorage(`${SyncService.storagePrefix}-state`, newData);
     });
     return SyncService.savingQueuePromise;
@@ -260,10 +262,11 @@ export class SyncService {
     const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-state`);
     SyncService.queue = [];
     for (const commandRecord of data.queue || []) {
-      const commandInstance = SyncService.mapToCommand(
+      const commandInstance = SyncService.mapToCommand!(
         commandRecord.resourceType,
         commandRecord.commandName,
-        commandRecord?.commandRecord
+        commandRecord?.commandRecord,
+        commandRecord?.localId
       );
       if (commandInstance) {
         if (commandRecord.commandId) {
@@ -282,10 +285,11 @@ export class SyncService {
     }
     SyncService.errorQueue = [];
     for (const commandRecord of data.errorQueue || []) {
-      const commandInstance = SyncService.mapToCommand(
+      const commandInstance = SyncService.mapToCommand!(
         commandRecord.resourceType,
         commandRecord.commandName,
-        commandRecord?.commandRecord
+        commandRecord?.commandRecord,
+        commandRecord?.localId
       );
       if (commandInstance) {
         if (commandRecord.commandId) {
@@ -375,7 +379,8 @@ export class SyncService {
       const potentialNewCommand = SyncService.mapToCommand!(
         createCommand.resourceType,
         CommandNames.Update,
-        createCommand.commandRecord
+        createCommand?.commandRecord,
+        createCommand?.localId
       );
       if (potentialNewCommand) {
         potentialNewCommand.localId = createCommand.localId;

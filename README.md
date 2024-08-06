@@ -130,10 +130,10 @@ Before starting your sync service, you'll need to provide two functions:
 Example of a commandMapper:
 
 ```javascript
-function commandMapper(resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>) {
+function commandMapper(resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>, localId?: string) {
   if (resourceType === 'Video') {
     if (commandName === CommandNames.Create) {
-      return new CommandCreateVideo(commandRecord!);
+      return new CommandCreateVideo(commandRecord!, localId!);
     }
   }
   return null;
