@@ -24,8 +24,7 @@ type loadFromStorageHelperHook = (name: string) => Promise<string | null>;
 type mapToCommandFunc = (
   resourceType: string,
   commandName: CommandNames,
-  commandRecord?: Record<string, any>,
-  localId?: string
+  commandRecord?: Record<string, any>
 ) => IUpdateCommand | ICreateCommand | IDeleteCommand | null;
 
 export class SyncService {
@@ -265,8 +264,7 @@ export class SyncService {
       const commandInstance = SyncService.mapToCommand!(
         commandRecord.resourceType,
         commandRecord.commandName,
-        commandRecord?.commandRecord,
-        commandRecord?.localId
+        commandRecord?.commandRecord
       );
       if (commandInstance) {
         if (commandRecord.commandId) {
@@ -288,8 +286,7 @@ export class SyncService {
       const commandInstance = SyncService.mapToCommand!(
         commandRecord.resourceType,
         commandRecord.commandName,
-        commandRecord?.commandRecord,
-        commandRecord?.localId
+        commandRecord?.commandRecord
       );
       if (commandInstance) {
         if (commandRecord.commandId) {
@@ -379,8 +376,7 @@ export class SyncService {
       const potentialNewCommand = SyncService.mapToCommand!(
         createCommand.resourceType,
         CommandNames.Update,
-        createCommand?.commandRecord,
-        createCommand?.localId
+        createCommand?.commandRecord
       );
       if (potentialNewCommand) {
         potentialNewCommand.localId = createCommand.localId;

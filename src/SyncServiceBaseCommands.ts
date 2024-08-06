@@ -16,11 +16,7 @@ abstract class ParentCommand implements ICommand {
   localId: string;
   commandRecord: Record<string, any> | undefined = undefined;
   commandCreationDate: Date;
-  constructor(
-    resourceType: string,
-    commandName: CommandNames,
-    localId: string
-  ) {
+  constructor(resourceType: string, commandName: CommandNames, localId: string) {
     this.resourceType = resourceType;
     this.commandName = commandName;
     this.localId = localId;
@@ -45,13 +41,9 @@ abstract class ParentCommand implements ICommand {
    */
   mergeWithCommand(otherCommand: ICommand): ICommand {
     const earlierCommand: any =
-      this.commandCreationDate < otherCommand.commandCreationDate
-        ? this
-        : otherCommand;
+      this.commandCreationDate < otherCommand.commandCreationDate ? this : otherCommand;
     const laterCommand: any =
-      this.commandCreationDate < otherCommand.commandCreationDate
-        ? otherCommand
-        : this;
+      this.commandCreationDate < otherCommand.commandCreationDate ? otherCommand : this;
     if (laterCommand.commandName === CommandNames.Delete) {
       return laterCommand.copy();
     }
@@ -71,18 +63,12 @@ abstract class ParentCommand implements ICommand {
   }
 
   public copy(): ICommand {
-    const clone: ICommand = Object.assign(
-      Object.create(Object.getPrototypeOf(this)),
-      this
-    );
+    const clone: ICommand = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
     return clone;
   }
 }
 
-export abstract class CreateCommand
-  extends ParentCommand
-  implements ICreateCommand
-{
+export abstract class CreateCommand extends ParentCommand implements ICreateCommand {
   commandRecord: Record<string, any>;
   constructor(
     resourceType: string,
@@ -96,17 +82,11 @@ export abstract class CreateCommand
   abstract sync: ICreateCommand["sync"];
 }
 
-export abstract class ReadCommand
-  extends ParentCommand
-  implements IReadCommand
-{
+export abstract class ReadCommand extends ParentCommand implements IReadCommand {
   abstract getCloudCopy: IReadCommand["getCloudCopy"];
 }
 
-export abstract class UpdateCommand
-  extends ParentCommand
-  implements IUpdateCommand
-{
+export abstract class UpdateCommand extends ParentCommand implements IUpdateCommand {
   commandRecord: Record<string, any>;
   constructor(
     resourceType: string,
@@ -120,15 +100,8 @@ export abstract class UpdateCommand
   abstract sync: IUpdateCommand["sync"];
 }
 
-export abstract class DeleteCommand
-  extends ParentCommand
-  implements IDeleteCommand
-{
-  constructor(
-    resourceType: string,
-    commandName: CommandNames,
-    localId: string
-  ) {
+export abstract class DeleteCommand extends ParentCommand implements IDeleteCommand {
+  constructor(resourceType: string, commandName: CommandNames, localId: string) {
     super(resourceType, commandName, localId);
   }
   abstract sync: IDeleteCommand["sync"];
