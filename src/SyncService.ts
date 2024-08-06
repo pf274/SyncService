@@ -192,7 +192,13 @@ export class SyncService {
       for (const resourceType of listenersToRun) {
         if (SyncService.resourceListeners[resourceType]) {
           const callbackFunction = SyncService.resourceListeners[resourceType];
-          callbackFunction(Object.values(newData[resourceType]));
+          callbackFunction(
+            Object.entries(newData[resourceType]).map(([localId, data]) => ({
+              localId,
+              resourceType,
+              data: data as Record<string, any>,
+            }))
+          );
         }
       }
     });
@@ -221,7 +227,13 @@ export class SyncService {
       await SyncService.saveToStorage(`${SyncService.storagePrefix}-data`, newData);
       if (SyncService.resourceListeners[resourceType]) {
         const callbackFunction = SyncService.resourceListeners[resourceType];
-        callbackFunction(Object.values(newData[resourceType]));
+        callbackFunction(
+          Object.entries(newData[resourceType]).map(([localId, data]) => ({
+            localId,
+            resourceType,
+            data: data as Record<string, any>,
+          }))
+        );
       }
     });
     return SyncService.savingDataPromise;
