@@ -28,9 +28,9 @@ type mapToCommandFunc = (
 ) => IUpdateCommand | ICreateCommand | IDeleteCommand | null;
 
 export class SyncService {
-  private static queue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
-  private static errorQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
-  private static inProgressQueue: (IUpdateCommand | ICreateCommand | IDeleteCommand)[] = [];
+  private static queue: ICommand[] = [];
+  private static errorQueue: ICommand[] = [];
+  private static inProgressQueue: ICommand[] = [];
   private static syncInterval: NodeJS.Timeout | null = null;
   private static maxConcurrentRequests = 3;
   private static minCommandAgeInSeconds = 0;
@@ -358,23 +358,19 @@ export class SyncService {
     return recordsToReturn;
   }
   /**
-   * If the command is a read operation, it will be executed immediately and the result will be returned.
+   * If the command is a read operation and you want the result immediately, call SyncService.read(command) instead.
    *
-   * If the command is a write operation, it will be added to the queue for processing.
-   *
-   * For read operations, you can also use SyncService.read(command) to execute the command immediately.
-   * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
+   * This method will add the provided command to the queue for processing.
    */
-  static async addCommand(command: ICommand): Promise<void | null | Record<string, any>> {
+  static async addCommand(command: ICommand) {
     // TODO: add a second parameter for a callback function that will execute once the command is executed
-    // handle read operations, don't add them to the queue
-    if (command.commandName == CommandNames.Read) {
-      return SyncService.read(command as IReadCommand);
-    } else if (command.commandName == CommandNames.ReadAll) {
-      return SyncService.read(command as IGetAllResourcesOfTypeCommand);
-    }
     // try to convert create commands to update commands for existing resources
-    let newCommand = command as ICreateCommand | IUpdateCommand | IDeleteCommand;
+    let newCommand = command as
+      | ICreateCommand
+      | IUpdateCommand
+      | IDeleteCommand
+      | IReadCommand
+      | IGetAllResourcesOfTypeCommand;
     const storedVersion = await SyncService.getLocalResource(
       newCommand.resourceType,
       newCommand.localId
@@ -589,39 +585,69 @@ export class SyncService {
       );
       for (const command of commandsToRun) {
         this.inProgressQueue.push(command);
-        command.sync().then(async (response: any) => {
-          const newSyncDate = response.newSyncDate;
-          const newRecord = response?.newRecord;
-          this.queue = this.queue.filter(
-            (queuedCommand) => queuedCommand.commandId !== command.commandId
-          );
-          this.inProgressQueue = this.inProgressQueue.filter(
-            (inProgressCommand) => inProgressCommand.commandId !== command.commandId
-          );
-          if (newSyncDate) {
-            this.completedCommands++;
-            const mostRecentTime = Math.max(
-              SyncService.syncDate?.getTime() || 0,
-              newSyncDate.getTime()
-            );
-            SyncService.syncDate = new Date(mostRecentTime);
-            if (newRecord) {
-              await SyncService.saveResources(
-                [
-                  {
-                    resourceType: command.resourceType,
-                    localId: command.localId,
-                    data: newRecord,
-                  },
-                ],
-                true
+        if (command.commandName == CommandNames.Read) {
+          SyncService.read(command as IReadCommand)
+            .then(() => {
+              this.inProgressQueue = this.inProgressQueue.filter(
+                (inProgressCommand) => inProgressCommand.commandId !== command.commandId
               );
-            }
-          } else {
-            this.errorQueue.push(command);
-          }
-          await SyncService.saveState();
-        });
+            })
+            .catch(() => {
+              this.inProgressQueue = this.inProgressQueue.filter(
+                (inProgressCommand) => inProgressCommand.commandId !== command.commandId
+              );
+              this.errorQueue.push(command);
+            });
+        } else if (command.commandName == CommandNames.ReadAll) {
+          SyncService.read(command as IGetAllResourcesOfTypeCommand)
+            .then(() => {
+              this.inProgressQueue = this.inProgressQueue.filter(
+                (inProgressCommand) => inProgressCommand.commandId !== command.commandId
+              );
+            })
+            .catch(() => {
+              this.inProgressQueue = this.inProgressQueue.filter(
+                (inProgressCommand) => inProgressCommand.commandId !== command.commandId
+              );
+              this.errorQueue.push(command);
+            });
+        } else {
+          (command as ICreateCommand | IUpdateCommand | IDeleteCommand)
+            .sync()
+            .then(async (response: any) => {
+              const newSyncDate = response.newSyncDate;
+              const newRecord = response?.newRecord;
+              this.queue = this.queue.filter(
+                (queuedCommand) => queuedCommand.commandId !== command.commandId
+              );
+              this.inProgressQueue = this.inProgressQueue.filter(
+                (inProgressCommand) => inProgressCommand.commandId !== command.commandId
+              );
+              if (newSyncDate) {
+                this.completedCommands++;
+                const mostRecentTime = Math.max(
+                  SyncService.syncDate?.getTime() || 0,
+                  newSyncDate.getTime()
+                );
+                SyncService.syncDate = new Date(mostRecentTime);
+                if (newRecord) {
+                  await SyncService.saveResources(
+                    [
+                      {
+                        resourceType: command.resourceType,
+                        localId: command.localId,
+                        data: newRecord,
+                      },
+                    ],
+                    true
+                  );
+                }
+              } else {
+                this.errorQueue.push(command);
+              }
+              await SyncService.saveState();
+            });
+        }
       }
     } catch (err) {
       if (SyncService.debug) {
