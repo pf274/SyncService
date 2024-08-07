@@ -324,40 +324,37 @@ export class SyncService {
    * If the cloud version is not found, the local version will be returned.
    * @returns The specified resources
    */
-  static async read(command: IReadCommand): Promise<Record<string, any>[]> {
-    const { retrievedRecords } = await command.getCloudCopy();
+  static async read(
+    command: IReadCommand | IGetAllResourcesOfTypeCommand
+  ): Promise<Record<string, any>[]> {
+    const { retrievedRecords } =
+      command.commandName == CommandNames.Read
+        ? await (command as IReadCommand).getCloudCopy()
+        : await (command as IGetAllResourcesOfTypeCommand).getCloudCopies();
     const recordsToReturn = [];
+    const recordsToUpdate = [];
     for (const record of retrievedRecords) {
       const cloudVersion = record.data;
       const localVersion = await SyncService.getLocalResource(command.resourceType, record.localId);
       if (!localVersion) {
-        await SyncService.saveResources(
-          [
-            {
-              resourceType: command.resourceType,
-              localId: command.localId,
-              data: cloudVersion,
-            },
-          ],
-          true
-        );
+        recordsToUpdate.push({
+          resourceType: command.resourceType,
+          localId: command.localId,
+          data: cloudVersion,
+        });
         recordsToReturn.push(cloudVersion);
       } else if (cloudVersion.updatedAt > localVersion.updatedAt) {
-        await SyncService.saveResources(
-          [
-            {
-              resourceType: command.resourceType,
-              localId: command.localId,
-              data: cloudVersion,
-            },
-          ],
-          true
-        );
+        recordsToUpdate.push({
+          resourceType: command.resourceType,
+          localId: command.localId,
+          data: cloudVersion,
+        });
         recordsToReturn.push(cloudVersion);
       } else {
         recordsToReturn.push(localVersion);
       }
     }
+    await SyncService.saveResources(recordsToUpdate, true);
     return recordsToReturn;
   }
   /**
@@ -369,13 +366,12 @@ export class SyncService {
    * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
    */
   static async addCommand(command: ICommand): Promise<void | null | Record<string, any>> {
+    // TODO: add a second parameter for a callback function that will execute once the command is executed
     // handle read operations, don't add them to the queue
     if (command.commandName == CommandNames.Read) {
       return SyncService.read(command as IReadCommand);
     } else if (command.commandName == CommandNames.ReadAll) {
-      throw new Error(
-        "Cannot add get all resources command to queue. These must be run when the sync service starts."
-      );
+      return SyncService.read(command as IGetAllResourcesOfTypeCommand);
     }
     // try to convert create commands to update commands for existing resources
     let newCommand = command as ICreateCommand | IUpdateCommand | IDeleteCommand;
