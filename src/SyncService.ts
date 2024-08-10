@@ -365,13 +365,24 @@ export class SyncService {
    * For read operations, you can also use SyncService.read(command) to execute the command immediately.
    * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
    */
-  static async addCommand(command: ICommand): Promise<void | null | Record<string, any>> {
+  static async addCommand(
+    command: ICommand,
+    callback?: () => any
+  ): Promise<void | null | Record<string, any>> {
     // TODO: add a second parameter for a callback function that will execute once the command is executed
     // handle read operations, don't add them to the queue
     if (command.commandName == CommandNames.Read) {
-      return SyncService.read(command as IReadCommand);
+      const result = await SyncService.read(command as IReadCommand);
+      if (callback) {
+        callback();
+      }
+      return result;
     } else if (command.commandName == CommandNames.ReadAll) {
-      return SyncService.read(command as IGetAllResourcesOfTypeCommand);
+      const result = await SyncService.read(command as IGetAllResourcesOfTypeCommand);
+      if (callback) {
+        callback();
+      }
+      return result;
     }
     // try to convert create commands to update commands for existing resources
     let newCommand = command as ICreateCommand | IUpdateCommand | IDeleteCommand;
@@ -395,10 +406,29 @@ export class SyncService {
         throw new Error("Cannot add create command: resource already exists");
       }
     }
+    // add a callback to the command to execute once the command is synced
+    if (callback) {
+      if (newCommand.commandName == CommandNames.Delete) {
+        (newCommand as IDeleteCommand).sync = async () => {
+          const response = await (newCommand as IDeleteCommand).sync();
+          callback();
+          return response;
+        };
+      } else {
+        (newCommand as ICreateCommand | IUpdateCommand).sync = async () => {
+          const response = await (newCommand as ICreateCommand | IUpdateCommand).sync();
+          callback();
+          return response;
+        };
+      }
+    }
     // handle write and delete operations locally
     if (newCommand.commandName == CommandNames.Delete) {
       await SyncService.deleteResource(newCommand.resourceType, newCommand.localId);
-    } else {
+    } else if (
+      newCommand.commandName == CommandNames.Update ||
+      newCommand.commandName == CommandNames.Create
+    ) {
       const writeCommand = newCommand as ICreateCommand | IUpdateCommand;
       const simplifiedVersion: Record<string, any> = writeCommand.commandRecord;
       if (storedVersion) {
@@ -422,6 +452,8 @@ export class SyncService {
         ],
         false
       );
+    } else {
+      throw new Error("Invalid command type");
     }
     // check if the command can be merged with any existing commands
     const mergeableCommand = SyncService.queue.find((otherCommand) =>

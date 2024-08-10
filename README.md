@@ -153,6 +153,19 @@ const getAllVideos = new CommandGetAllVideos();
 await SyncService.startSync(getSyncDate, commandMapper, [getAllVideos]);
 ```
 
+### Adding commands
+
+Add a new command to the sync queue using SyncService.addCommand(newCommandInstance, callback);
+The callback function is optional. It will be executed once the command has been synced with the cloud.
+
+```javascript
+const command = new CreateVideoCommand(videoRecord);
+const callback = () => {
+  console.log(`Video saved to cloud!`);
+};
+SyncService.addCommand(command, callback);
+```
+
 ## Contributing
 
 Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request on the [GitHub repository](https://github.com/pf274/SyncService).
