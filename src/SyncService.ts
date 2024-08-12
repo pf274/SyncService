@@ -259,7 +259,7 @@ export class SyncService {
    */
   private static async deleteResource(resourceType: string, localId: string): Promise<void> {
     if (SyncService.debug) {
-      console.log(`Deleting resource ${resourceType} with localId ${localId}`);
+      console.log(`Deleting ${resourceType} with localId ${localId}`);
     }
     SyncService.savingDataPromise = SyncService.savingDataPromise.then(async () => {
       const newData = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
