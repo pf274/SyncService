@@ -474,16 +474,19 @@ export class SyncService {
       if (SyncService.debug) {
         console.log("Merging commands...");
       }
-      let mergedCommand = mergeableCommand.mergeWithCommand(newCommand);
-      if (mergedCommand) {
-        // I don't know why, but when a command is copied, the sync method uses the old commandRecord. So, to fix this, we're creating the command again.
-        mergedCommand = SyncService.mapToCommand!(
-          mergedCommand.resourceType,
-          mergedCommand.commandName as CommandNames,
-          (mergedCommand as any)?.commandRecord
-        )!;
-      }
-      if (mergedCommand) {
+      const mergedCommand = mergeableCommand.mergeWithCommand(newCommand);
+      // I don't know why, but when a command is copied, the sync method uses the old commandRecord. So, to fix this, we're creating the command again.
+      const mergedCommand2: ICommand | null = mergedCommand
+        ? SyncService.mapToCommand!(
+            mergedCommand.resourceType,
+            mergedCommand.commandName as CommandNames,
+            (mergedCommand as any)?.commandRecord
+          )
+        : null;
+      if (mergedCommand2) {
+        mergedCommand2.localId = mergedCommand.localId;
+        mergedCommand2.commandCreationDate = mergedCommand.commandCreationDate;
+        mergedCommand2.commandId = mergedCommand.commandId;
         if (SyncService.debug) {
           console.log(`Merged command: ${JSON.stringify(mergedCommand, null, 2)}`);
         }
