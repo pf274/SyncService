@@ -612,7 +612,7 @@ export class SyncService {
       if (SyncService.debug) {
         const remainingCommands = this.queue.length - this.inProgressQueue.length;
         console.log(
-          `In progress: ${this.inProgressQueue.length}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`
+          `In progress: ${this.inProgressQueue.length}/${SyncService.maxConcurrentRequests}, Waiting: ${remainingCommands}, Completed: ${this.completedCommands}, Errors: ${this.errorQueue.length}`
         );
       }
       if (this.queue.length === 0) {
@@ -647,6 +647,9 @@ export class SyncService {
       );
       for (const command of commandsToRun) {
         this.inProgressQueue.push(command);
+        if (SyncService.debug) {
+          console.log(`Executing command: ${command.commandName} ${command.resourceType}`, command);
+        }
         command.sync().then(async (response: any) => {
           const newSyncDate = response.newSyncDate;
           const newRecord = response?.newRecord;
@@ -664,6 +667,9 @@ export class SyncService {
             );
             SyncService.syncDate = new Date(mostRecentTime);
             if (newRecord) {
+              if (SyncService.debug) {
+                console.log("Saving resource from API response:", newRecord);
+              }
               await SyncService.saveResources(
                 [
                   {
@@ -676,6 +682,9 @@ export class SyncService {
               );
             }
           } else {
+            if (SyncService.debug) {
+              console.log("Command failed:", command);
+            }
             this.errorQueue.push(command);
           }
           await SyncService.saveState();
