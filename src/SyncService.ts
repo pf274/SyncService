@@ -168,7 +168,7 @@ export class SyncService {
     if (SyncService.debug) {
       const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
       console.log(
-        `Saving ${synced ? "synced " : " "}resources of type${
+        `Saving ${synced ? "synced " : ""}resources of type${
           resourceTypes.length > 1 ? "s" : ""
         } ${resourceTypes.join(", ")}`
       );
@@ -402,6 +402,9 @@ export class SyncService {
         potentialNewCommand.commandCreationDate = createCommand.commandCreationDate;
         potentialNewCommand.commandId = createCommand.commandId;
         newCommand = potentialNewCommand as IUpdateCommand;
+        if (SyncService.debug) {
+          console.log("Converted create command to update command");
+        }
       } else {
         throw new Error("Cannot add create command: resource already exists");
       }
@@ -421,6 +424,9 @@ export class SyncService {
           return response;
         };
       }
+      if (SyncService.debug) {
+        console.log("Added callback to command");
+      }
     }
     // handle write and delete operations locally
     if (newCommand.commandName == CommandNames.Delete) {
@@ -438,7 +444,13 @@ export class SyncService {
           }
         }
       }
+      if (SyncService.debug) {
+        console.log("Simplified version:", simplifiedVersion);
+      }
       if (Object.keys(simplifiedVersion).length == 0) {
+        if (SyncService.debug) {
+          console.log("No changes to save. Command not added to Sync Service.");
+        }
         return;
       }
       writeCommand.commandRecord = simplifiedVersion;
@@ -460,15 +472,29 @@ export class SyncService {
       otherCommand.canMerge(newCommand)
     );
     if (mergeableCommand) {
+      if (SyncService.debug) {
+        console.log("Merging commands...");
+      }
       const mergedCommand = mergeableCommand.mergeWithCommand(newCommand);
-      SyncService.queue = SyncService.queue.filter(
-        (otherCommand) => otherCommand.commandId !== mergeableCommand.commandId
-      );
-      SyncService.queue.push(mergedCommand as ICreateCommand | IUpdateCommand | IDeleteCommand);
-      SyncService.queue.sort(
-        (a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
-      );
+      if (mergedCommand) {
+        if (SyncService.debug) {
+          console.log(`Merged command: ${JSON.stringify(mergedCommand, null, 2)}`);
+        }
+        SyncService.queue = SyncService.queue.filter(
+          (otherCommand) => otherCommand.commandId !== mergeableCommand.commandId
+        );
+        if (SyncService.debug) {
+          console.log("Added merged command to the queue");
+        }
+        SyncService.queue.push(mergedCommand as ICreateCommand | IUpdateCommand | IDeleteCommand);
+        SyncService.queue.sort(
+          (a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
+        );
+      }
     } else {
+      if (SyncService.debug) {
+        console.log("Adding command to the queue");
+      }
       SyncService.queue.push(newCommand);
     }
     await SyncService.saveState();
