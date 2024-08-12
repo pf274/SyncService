@@ -369,7 +369,6 @@ export class SyncService {
     command: ICommand,
     callback?: () => any
   ): Promise<void | null | Record<string, any>> {
-    // TODO: add a second parameter for a callback function that will execute once the command is executed
     // handle read operations, don't add them to the queue
     if (command.commandName == CommandNames.Read) {
       const result = await SyncService.read(command as IReadCommand);
@@ -475,7 +474,15 @@ export class SyncService {
       if (SyncService.debug) {
         console.log("Merging commands...");
       }
-      const mergedCommand = mergeableCommand.mergeWithCommand(newCommand);
+      let mergedCommand = mergeableCommand.mergeWithCommand(newCommand);
+      if (mergedCommand) {
+        // I don't know why, but when a command is copied, the sync method uses the old commandRecord. So, to fix this, we're creating the command again.
+        mergedCommand = SyncService.mapToCommand!(
+          mergedCommand.resourceType,
+          mergedCommand.commandName as CommandNames,
+          (mergedCommand as any)?.commandRecord
+        )!;
+      }
       if (mergedCommand) {
         if (SyncService.debug) {
           console.log(`Merged command: ${JSON.stringify(mergedCommand, null, 2)}`);
