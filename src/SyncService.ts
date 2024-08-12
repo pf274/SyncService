@@ -483,13 +483,19 @@ export class SyncService {
         SyncService.queue = SyncService.queue.filter(
           (otherCommand) => otherCommand.commandId !== mergeableCommand.commandId
         );
-        if (SyncService.debug) {
-          console.log("Added merged command to the queue");
-        }
         SyncService.queue.push(mergedCommand as ICreateCommand | IUpdateCommand | IDeleteCommand);
         SyncService.queue.sort(
           (a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
         );
+        if (SyncService.debug) {
+          console.log(
+            `Added merged command to the queue. New queue:\n${JSON.stringify(
+              SyncService.queue,
+              null,
+              2
+            )}`
+          );
+        }
       }
     } else {
       if (SyncService.debug) {
