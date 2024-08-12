@@ -63,7 +63,23 @@ abstract class ParentCommand implements ICommand {
   }
 
   public copy(): ICommand {
-    const clone: ICommand = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
+    const clone: ICommand = Object.assign(Object.create(Object.getPrototypeOf(this)), {});
+    const properties = Object.getOwnPropertyNames(this);
+    for (const prop of properties) {
+      if (typeof this[prop as keyof this] !== "function") {
+        (clone as any)[prop] = this[prop as keyof this];
+      }
+    }
+    clone.commandId = generateUuid();
+    clone.commandName = this.commandName;
+    clone.resourceType = this.resourceType;
+    clone.localId = this.localId;
+    clone.commandCreationDate = this.commandCreationDate;
+    if (this instanceof UpdateCommand || this instanceof CreateCommand) {
+      (clone as UpdateCommand | CreateCommand).commandRecord = JSON.parse(
+        JSON.stringify(this.commandRecord)
+      );
+    }
     return clone;
   }
 }
