@@ -602,7 +602,8 @@ export class SyncService {
       // make sure data is up to date
       await SyncService.loadState();
       const cloudSyncDate = await getCloudSyncDateHook();
-      if (SyncService.syncDate !== cloudSyncDate) {
+      if (SyncService.syncDate == null || SyncService.syncDate < cloudSyncDate) {
+        // local resources are out of date
         if (initializationCommands) {
           let remainingCommands = [...initializationCommands];
           do {
