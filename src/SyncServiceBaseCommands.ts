@@ -36,31 +36,6 @@ abstract class ParentCommand implements ICommand {
     });
     return headersObject;
   }
-  /**
-   * Merges two commands together. The earlier command is the one that is kept and updated, unless the later command is a delete command.
-   */
-  mergeWithCommand(otherCommand: ICommand): ICommand {
-    const earlierCommand: any =
-      this.commandCreationDate < otherCommand.commandCreationDate ? this : otherCommand;
-    const laterCommand: any =
-      this.commandCreationDate < otherCommand.commandCreationDate ? otherCommand : this;
-    if (laterCommand.commandName === CommandNames.Delete) {
-      return laterCommand.copy();
-    }
-    const mergedCommand = earlierCommand.copy();
-    // update command record
-    if (earlierCommand.commandRecord && laterCommand.commandRecord) {
-      mergedCommand.commandRecord = {
-        ...earlierCommand.commandRecord,
-        ...laterCommand.commandRecord,
-      };
-    } else if (laterCommand.commandRecord) {
-      mergedCommand.commandRecord = laterCommand.commandRecord;
-    }
-    // update creation date
-    mergedCommand.commandCreationDate = earlierCommand.commandCreationDate;
-    return mergedCommand;
-  }
 
   public copy(): ICommand {
     const clone: ICommand = Object.assign(Object.create(Object.getPrototypeOf(this)), this);

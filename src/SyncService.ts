@@ -9,6 +9,7 @@ import {
 import { ISyncResource } from "./interfaces/ISyncResource";
 import { CommandNames } from "./interfaces/CommandNames";
 import CryptoJS from "crypto-js";
+import { generateUuid } from "./uuid";
 
 type saveToStorageHook = (name: string, data: Record<string, any> | string) => Promise<void>;
 type saveToStorageHelperHook = (name: string, data: Record<string, any> | string) => Promise<void>;
@@ -46,6 +47,50 @@ export class SyncService {
   private static mapToCommand: mapToCommandFunc | null = null;
   private static debug: boolean = false;
   private static resourceListeners: Record<string, (resources: ISyncResource[]) => any> = {};
+
+  private static mergeCommands(command1: ICommand, command2: ICommand): ICommand | null {
+    const earlierCommand: any =
+      command1.commandCreationDate < command2.commandCreationDate ? command1 : command2;
+    const laterCommand: any =
+      command1.commandCreationDate < command2.commandCreationDate ? command2 : command1;
+    if (laterCommand.commandName === CommandNames.Delete) {
+      const newCommand = SyncService.mapToCommand!(laterCommand.resourceType, CommandNames.Delete);
+      if (!newCommand) {
+        if (SyncService.debug) {
+          console.error("Cannot merge commands");
+        }
+        return null;
+      }
+      newCommand.localId = laterCommand.localId;
+      newCommand.commandName = laterCommand.commandName;
+      newCommand.commandCreationDate = earlierCommand.commandCreationDate;
+      return newCommand!;
+    }
+    const mergedCommand = SyncService.mapToCommand!(
+      earlierCommand.resourceType,
+      earlierCommand.commandName,
+      (earlierCommand as any)?.commandRecord
+    ) as ICreateCommand | IUpdateCommand | null;
+    if (!mergedCommand) {
+      if (SyncService.debug) {
+        console.error("Cannot merge commands");
+      }
+      return null;
+    }
+    mergedCommand.localId = earlierCommand.localId;
+    mergedCommand.commandName = earlierCommand.commandName;
+    mergedCommand.commandCreationDate = earlierCommand.commandCreationDate;
+    // update command record
+    if (earlierCommand.commandRecord && laterCommand.commandRecord) {
+      mergedCommand.commandRecord = {
+        ...earlierCommand.commandRecord,
+        ...laterCommand.commandRecord,
+      };
+    } else if (laterCommand.commandRecord) {
+      mergedCommand.commandRecord = laterCommand.commandRecord;
+    }
+    return mergedCommand;
+  }
 
   static getConfig() {
     return {
@@ -474,19 +519,8 @@ export class SyncService {
       if (SyncService.debug) {
         console.log("Merging commands...");
       }
-      const mergedCommand = mergeableCommand.mergeWithCommand(newCommand);
-      // I don't know why, but when a command is copied, the sync method uses the old commandRecord. So, to fix this, we're creating the command again.
-      const mergedCommand2: ICommand | null = mergedCommand
-        ? SyncService.mapToCommand!(
-            mergedCommand.resourceType,
-            mergedCommand.commandName as CommandNames,
-            (mergedCommand as any)?.commandRecord
-          )
-        : null;
-      if (mergedCommand2) {
-        mergedCommand2.localId = mergedCommand.localId;
-        mergedCommand2.commandCreationDate = mergedCommand.commandCreationDate;
-        mergedCommand2.commandId = mergedCommand.commandId;
+      const mergedCommand = SyncService.mergeCommands(mergeableCommand, newCommand);
+      if (mergedCommand) {
         if (SyncService.debug) {
           console.log(`Merged command: ${JSON.stringify(mergedCommand, null, 2)}`);
         }
