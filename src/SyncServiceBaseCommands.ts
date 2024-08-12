@@ -63,13 +63,7 @@ abstract class ParentCommand implements ICommand {
   }
 
   public copy(): ICommand {
-    const clone: ICommand = Object.assign(Object.create(Object.getPrototypeOf(this)), {});
-    const properties = Object.getOwnPropertyNames(this);
-    for (const prop of properties) {
-      if (typeof this[prop as keyof this] !== "function") {
-        (clone as any)[prop] = this[prop as keyof this];
-      }
-    }
+    const clone: ICommand = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
     clone.commandId = generateUuid();
     clone.commandName = this.commandName;
     clone.resourceType = this.resourceType;
