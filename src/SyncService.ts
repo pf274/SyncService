@@ -511,11 +511,22 @@ export class SyncService {
     } else {
       throw new Error("Invalid command type");
     }
+    // check if the command cancels out any existing commands
+    const cancelableCommand = SyncService.queue.find((otherCommand) =>
+      otherCommand.canCancelOut(newCommand)
+    );
     // check if the command can be merged with any existing commands
     const mergeableCommand = SyncService.queue.find((otherCommand) =>
       otherCommand.canMerge(newCommand)
     );
-    if (mergeableCommand) {
+    if (cancelableCommand) {
+      SyncService.queue = SyncService.queue.filter(
+        (otherCommand) => otherCommand.commandId !== cancelableCommand.commandId
+      );
+      if (SyncService.debug) {
+        console.log("Removed cancelled command from the queue");
+      }
+    } else if (mergeableCommand) {
       if (SyncService.debug) {
         console.log("Merging commands...");
       }
