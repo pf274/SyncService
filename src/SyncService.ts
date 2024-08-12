@@ -727,7 +727,9 @@ export class SyncService {
               newSyncDate.getTime()
             );
             SyncService.syncDate = new Date(mostRecentTime);
-            if (newRecord) {
+            if (command.commandName == CommandNames.Delete) {
+              await SyncService.deleteResource(command.resourceType, command.localId);
+            } else if (newRecord) {
               if (SyncService.debug) {
                 console.log("Saving resource from API response:", newRecord);
               }
