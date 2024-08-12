@@ -399,7 +399,9 @@ export class SyncService {
         recordsToReturn.push(localVersion);
       }
     }
-    await SyncService.saveResources(recordsToUpdate, true);
+    if (recordsToUpdate.length > 0) {
+      await SyncService.saveResources(recordsToUpdate, true);
+    }
     return recordsToReturn;
   }
   /**
@@ -609,7 +611,7 @@ export class SyncService {
               .map((command) =>
                 command.getCloudCopies().then(async (response) => {
                   const retrievedRecords = response.retrievedRecords;
-                  if (retrievedRecords) {
+                  if (retrievedRecords && retrievedRecords.length > 0) {
                     await SyncService.saveResources(retrievedRecords, true);
                   }
                   remainingCommands = remainingCommands.filter(
