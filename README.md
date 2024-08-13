@@ -155,15 +155,11 @@ await SyncService.startSync(getSyncDate, commandMapper, [getAllVideos]);
 
 ### Adding commands
 
-Add a new command to the sync queue using SyncService.addCommand(newCommandInstance, callback);
-The callback function is optional. It will be executed once the command has been synced with the cloud.
+Add a new command to the sync queue using `SyncService.addCommand(newCommandInstance)`;
 
 ```javascript
 const command = new CreateVideoCommand(videoRecord);
-const callback = () => {
-  console.log(`Video saved to cloud!`);
-};
-SyncService.addCommand(command, callback);
+SyncService.addCommand(command);
 ```
 
 ## Contributing

@@ -210,6 +210,9 @@ export class SyncService {
    * @returns A promise that resolves when the save operation has completed.
    */
   private static async saveResources(newResources: ISyncResource[], synced: boolean) {
+    if (newResources.length == 0) {
+      return;
+    }
     if (SyncService.debug) {
       const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
       console.log(
@@ -412,23 +415,12 @@ export class SyncService {
    * For read operations, you can also use SyncService.read(command) to execute the command immediately.
    * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
    */
-  static async addCommand(
-    command: ICommand,
-    callback?: () => any
-  ): Promise<void | null | Record<string, any>> {
+  static async addCommand(command: ICommand): Promise<void | null | Record<string, any>> {
     // handle read operations, don't add them to the queue
     if (command.commandName == CommandNames.Read) {
-      const result = await SyncService.read(command as IReadCommand);
-      if (callback) {
-        callback();
-      }
-      return result;
+      return SyncService.read(command as IReadCommand);
     } else if (command.commandName == CommandNames.ReadAll) {
-      const result = await SyncService.read(command as IGetAllResourcesOfTypeCommand);
-      if (callback) {
-        callback();
-      }
-      return result;
+      return SyncService.read(command as IGetAllResourcesOfTypeCommand);
     }
     // try to convert create commands to update commands for existing resources
     let newCommand = command as ICreateCommand | IUpdateCommand | IDeleteCommand;
@@ -453,25 +445,6 @@ export class SyncService {
         }
       } else {
         throw new Error("Cannot add create command: resource already exists");
-      }
-    }
-    // add a callback to the command to execute once the command is synced
-    if (callback) {
-      if (newCommand.commandName == CommandNames.Delete) {
-        (newCommand as IDeleteCommand).sync = async () => {
-          const response = await (newCommand as IDeleteCommand).sync();
-          callback();
-          return response;
-        };
-      } else {
-        (newCommand as ICreateCommand | IUpdateCommand).sync = async () => {
-          const response = await (newCommand as ICreateCommand | IUpdateCommand).sync();
-          callback();
-          return response;
-        };
-      }
-      if (SyncService.debug) {
-        console.log("Added callback to command");
       }
     }
     // handle write and delete operations locally
@@ -609,21 +582,50 @@ export class SyncService {
           do {
             const promises = initializationCommands
               .slice(0, SyncService.maxConcurrentRequests)
-              .map((command) =>
-                command.getCloudCopies().then(async (response) => {
+              .map((command) => {
+                if (SyncService.debug) {
+                  console.log(
+                    `Executing initialization command for resources of type '${command.resourceType}'...`
+                  );
+                }
+                return command.getCloudCopies().then(async (response) => {
                   const retrievedRecords = response.retrievedRecords;
+                  if (SyncService.debug) {
+                    console.log(
+                      `Retrieved ${retrievedRecords?.length || 0} resources of type '${
+                        command.resourceType
+                      }'`
+                    );
+                  }
                   if (retrievedRecords && retrievedRecords.length > 0) {
                     await SyncService.saveResources(retrievedRecords, true);
                   }
                   remainingCommands = remainingCommands.filter(
                     (otherCommand) => otherCommand.commandId !== command.commandId
                   );
-                })
-              );
+                });
+              });
             await Promise.all(promises);
           } while (remainingCommands.length > 0);
         }
         SyncService.syncDate = cloudSyncDate;
+      } else {
+        if (SyncService.debug) {
+          console.log("Local resources are up to date. Notifying resource listeners.");
+        }
+        const data = await SyncService.loadFromStorage(`${SyncService.storagePrefix}-data`);
+        for (const resourceType of Object.keys(SyncService.resourceListeners)) {
+          if (data[resourceType]) {
+            const callbackFunction = SyncService.resourceListeners[resourceType];
+            callbackFunction(
+              Object.entries(data[resourceType]).map(([localId, data]) => ({
+                localId,
+                resourceType,
+                data: data as Record<string, any>,
+              }))
+            );
+          }
+        }
       }
       await SyncService.loadState();
       // check if error commands should be re-added to the queue
