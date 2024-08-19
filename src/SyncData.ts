@@ -210,7 +210,11 @@ export class SyncData {
       cloudRecords = (await (command as IGetAllResourcesOfTypeCommand).getCloudCopies())
         .retrievedRecords;
       const localData = await SyncData.loadFromStorage(`${SyncData.storagePrefix}-data`);
-      localRecords = Object.values(localData[command.resourceType]) || [];
+      localRecords = Object.keys(localData[command.resourceType] || {}).map((localId) => ({
+        localId,
+        resourceType: command.resourceType,
+        data: localData[command.resourceType][localId],
+      }));
     }
     return { cloudRecords, localRecords };
   }
