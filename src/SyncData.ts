@@ -36,6 +36,7 @@ export class SyncData {
   static mapToCommand: mapToCommandFunc | null = null;
   static debug: boolean = false;
   static resourceListeners: Record<string, (resources: ISyncResource[]) => any> = {};
+  static deletedLocalIds: string[] = [];
 
   static async updateLocalResources(
     cloudSyncDate: Date,
@@ -419,6 +420,7 @@ export class SyncData {
         queue: SyncData.queue,
         errorQueue: SyncData.errorQueue,
         syncDate: SyncData.syncDate,
+        deletedLocalIds: SyncData.deletedLocalIds,
       };
       await SyncData.saveToStorage(`${SyncData.storagePrefix}-state`, newData);
     });
@@ -467,6 +469,7 @@ export class SyncData {
       }
     }
     SyncData.syncDate = data.syncDate ? new Date(data.syncDate) : null;
+    SyncData.deletedLocalIds = data.deletedLocalIds || [];
   }
 
   /**

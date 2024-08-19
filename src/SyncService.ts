@@ -97,6 +97,9 @@ export class SyncService {
     for (const localId of localIdsToProcess) {
       const cloudVersion = cloudRecords.find((record) => record.localId === localId);
       const localVersion = localRecords.find((record) => record.localId === localId);
+      if (!localVersion && cloudVersion && SyncData.deletedLocalIds.includes(localId)) {
+        continue; // skip deleted resources
+      }
       const { shouldUpdate, versionToUse } = SyncData.shouldUpdateResource(
         localVersion,
         cloudVersion
@@ -154,6 +157,7 @@ export class SyncService {
         break;
       case CommandNames.Delete:
         await SyncData.deleteResource(command.resourceType, command.localId);
+        SyncData.deletedLocalIds.push(command.localId);
         break;
       default:
         throw new Error("Invalid command type");
@@ -300,6 +304,11 @@ export class SyncService {
             SyncData.inProgressQueue = SyncData.inProgressQueue.filter(
               (inProgressCommand) => inProgressCommand.commandId !== command.commandId
             );
+            if (command.commandName == CommandNames.Delete) {
+              SyncData.deletedLocalIds = SyncData.deletedLocalIds.filter(
+                (localId) => localId !== command.localId
+              );
+            }
             if (newSyncDate) {
               SyncData.completedCommands++;
               const mostRecentTime = Math.max(
