@@ -12,7 +12,7 @@ import CryptoJS from "crypto-js";
 import { mapToCommandFunc } from "./SyncTypes";
 
 type saveToStorageHook = (name: string, data: Record<string, any> | string) => Promise<void>;
-type saveToStorageHelperHook = (name: string, data: Record<string, any> | string) => Promise<void>;
+type saveToStorageHelperHook = (name: string, data: string) => Promise<void>;
 type loadFromStorageHook = (name: string) => Promise<Record<string, any>>;
 type loadFromStorageHelperHook = (name: string) => Promise<string | null>;
 type mergedCommand = ICreateCommand | IUpdateCommand | null;
@@ -41,6 +41,9 @@ export class SyncData {
     cloudSyncDate: Date,
     initializationCommands?: IGetAllResourcesOfTypeCommand[]
   ) {
+    if (SyncData.debug) {
+      console.log("Updating local resources...");
+    }
     const localResourcesOutOfDate = SyncData.syncDate == null || SyncData.syncDate < cloudSyncDate;
     if (!localResourcesOutOfDate) {
       return;
@@ -296,7 +299,11 @@ export class SyncData {
     if (SyncData.encrypt && SyncData.encryptionKey && typeof data === "string") {
       data = CryptoJS.AES.decrypt(data, SyncData.encryptionKey).toString(CryptoJS.enc.Utf8);
     }
-    return JSON.parse(data);
+    let returnVal = JSON.parse(data);
+    while (typeof returnVal === "string") {
+      returnVal = JSON.parse(returnVal);
+    }
+    return returnVal;
   };
   /**
    * Must be overridden to provide a custom implementation of the saveToStorage function.
