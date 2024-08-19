@@ -32,9 +32,7 @@ export class SyncService {
   }
   static get config() {
     return {
-      setSaveToStorage: (
-        func: (name: string, data: Record<string, any> | string) => Promise<void>
-      ) => {
+      setSaveToStorage: (func: (name: string, data: string) => Promise<void>) => {
         SyncData.saveToStorageHelper = func;
       },
       setLoadFromStorage: (func: (name: string) => Promise<string | null>) => {
