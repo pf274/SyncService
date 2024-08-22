@@ -2,7 +2,9 @@
 
 ## ATTENTION: This Package is brand new and may still have bugs. If you notice any, please report them in the github repository.
 
-The Sync Service npm package is a powerful tool for synchronizing data across multiple devices and platforms. It provides a seamless and efficient way to keep data in sync, ensuring that changes made on one device are reflected on all other devices.
+The Sync Service is a lightweight and reliable package designed to help you keep your clients' data in sync across devices. It simplifies data synchronization between your application and the cloud, ensuring changes are reflected on all connected devices.
+
+Note: This is meant for synchronizing simple JSON data. It won't handle more complex operations like large file uploads. 
 
 ## Features
 
@@ -36,17 +38,30 @@ npm install node-js-light-sync
 
 To use the Sync Service in your project, follow these steps:
 
-### Configure backend
+### Backend Configuration
+1. Create a syncDate property: In your user model, add a syncDate property to store the last time the user's data was synced.
+2. Update syncDate on data changes: Whenever a user creates, updates, or deletes data, update the syncDate property.
+3. Return syncDate in API responses: In your API endpoints that modify user data, include the syncDate property in the response.
+```javascript
+// Backend API endpoint
+app.post('/users/:userId', async (req, res) => {
+  // modify data here...
+  const user = await User.findById(req.params.userId);
+  const newSyncDate = new Date();
+  await User.updateSyncDate(newSyncDate);
+  res.json({
+    ...user.toObject(),
+    syncDate: newSyncDate.toISOString(),
+  });
+});
 
-Ensure that your backend service keeps track of when your user last made a change that should be synced, and returns that value when it is updated.
-
-For example, say I have a `user` table with a `syncDate` property. When the user creates or edits a file, this value is updated and also returned in the api call.
+```
 
 This allows your frontend to know when there are changes that need to be pulled in by comparing a locally-stored sync date to the cloud's sync date.
 
 ### Configure commands
 
-Configure commands to use in your sync service.
+Command configuration is a fundamental aspect of using the Sync Service. You must define custom commands that interact with your backend API to handle synchronization tasks.
 
 For each command, extend from one of the base commands provided by this package, such as `CreateCommand`. Implement the abstract methods.
 
@@ -90,7 +105,7 @@ Create, update, and delete commands need a sync method. The sync method should r
 Read and ReadAll operations need a getCloudCopies method. This returns an array of resources from your server. Each resource is an object with the same key/value pairs as mentioned in `newResourceInfo`.
 
 ### Initialization
-Before you can start the sync service, you must call SyncService.initialize(). The function takes several parameters:
+Before you can start the sync service, you must call SyncService.initialize(). The function takes four parameters:
 - `getCloudSyncDate` - should return the user's sync date from your server, or null if the call fails.
 - `commandMapper` - should take in the command name, the resource id, and the resource info. It should return either an instance of one of your command classes, or null. The resource info contains the same information as `newResourceInfo` mentioned above.
 - `saveToStorage` - This function should accept a `name` parameter specifying what it should name the document in your storage system, along with a `data` parameter specifying what should be saved.
@@ -122,6 +137,86 @@ const command = new CreateVideoCommand(videoRecord);
 SyncService.addCommand(command);
 ```
 
+### Example
+Setup:
+```javascript
+import { SyncService } from "../src/SyncService";
+import * as fs from "fs";
+import { CommandDeleteFolder } from "./testOperations/DeleteFolder";
+import { CommandCreateFolder } from "./testOperations/CreateFolder";
+import { CommandUpdateFolder } from "./testOperations/UpdateFolder";
+import { CommandNames } from "../src/CommandNames";
+import { CommandReadAllFolders } from "./testOperations/ReadAllFolders";
+import { ISyncResource } from "../src/ISyncResource";
+
+const mapToCommand = (
+  commandName,
+  resourceId,
+  resourceInfo
+) => {
+  switch (commandName) {
+    case CommandNames.Delete:
+      return new CommandDeleteFolder(resourceId);
+    case CommandNames.Create:
+      return new CommandCreateFolder(
+        resourceInfo!.data,
+        resourceId,
+        resourceInfo!.updatedAt
+      );
+    case CommandNames.Update:
+      return new CommandUpdateFolder(
+        resourceInfo!.data,
+        resourceId,
+        resourceInfo!.updatedAt
+      );
+    default:
+      throw new Error("Invalid commandName");
+  }
+};
+
+async function getCloudSyncDate() {
+  return new Date();
+}
+
+async function saveToStorage(name: string, data: string) {
+  if (!fs.existsSync("./test/data")) {
+    fs.mkdirSync("./test/data");
+  }
+  fs.writeFileSync(`./test/data/${name}`, data);
+}
+
+async function loadFromStorage(name: string) {
+  if (!fs.existsSync(`./test/data/${name}`)) {
+    return null;
+  }
+  return fs.readFileSync(`./test/data/${name}`).toString();
+}
+
+SyncService.initialize(
+  getCloudSyncDate,
+  mapToCommand,
+  saveToStorage,
+  loadFromStorage,
+  [new CommandReadAllFolders(initialFolders)]
+);
+
+SyncService.config.setSecondsBetweenSyncs(1);
+SyncService.config.setOnlineChecker(async () => true);
+SyncService.config.setMaxConcurrentRequests(1);
+SyncService.config.setDebug(true);
+
+SyncService.startSync();
+```
+Usage:
+```javascript
+// adding a command
+const newFolderCommand = new CommandCreateFolder({name: 'Recipes', description: 'All the best soup recipes'});
+SyncService.addCommand(newFolderCommand);
+
+// getting a resource
+const soupFolderCommand = new CommandReadFolder(folderId);
+const soupFolderObj = await SyncService.read(soupFolderCommand);
+```
 ## Contributing
 
 Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request on the [GitHub repository](https://github.com/pf274/SyncService).

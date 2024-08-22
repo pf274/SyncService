@@ -8,6 +8,8 @@ import {
   UpdateCommand,
 } from "./src/SyncServiceBaseCommands";
 
+import { ISyncResource } from "./src/ISyncResource";
+
 export {
   SyncService,
   CommandNames,
@@ -16,6 +18,7 @@ export {
   UpdateCommand,
   DeleteCommand,
   ReadAllCommand,
+  ISyncResource,
 };
 
 const Commands = {
