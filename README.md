@@ -1,6 +1,6 @@
 # Sync Service
 
-# ATTENTION: THIS PACKAGE IS NOT READY FOR PUBLIC USE. We are working out bugs right now.
+## ATTENTION: This Package is brand new and may still have bugs. If you notice any, please report them in the github repository.
 
 The Sync Service npm package is a powerful tool for synchronizing data across multiple devices and platforms. It provides a seamless and efficient way to keep data in sync, ensuring that changes made on one device are reflected on all other devices.
 
