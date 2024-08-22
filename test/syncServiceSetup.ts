@@ -37,23 +37,33 @@ async function getCloudSyncDate() {
   return new Date();
 }
 
+async function saveToStorage(name: string, data: string) {
+  if (!fs.existsSync("./test/data")) {
+    fs.mkdirSync("./test/data");
+  }
+  fs.writeFileSync(`./test/data/${name}`, data);
+}
+
+async function loadFromStorage(name: string) {
+  if (!fs.existsSync(`./test/data/${name}`)) {
+    return null;
+  }
+  return fs.readFileSync(`./test/data/${name}`).toString();
+}
+
 export function setupSyncService(initialFolders: ISyncResource[]) {
-  SyncService.config.setSaveToStorage(async (name: string, data: string) => {
-    fs.writeFileSync(`./test/data/${name}`, data);
-  });
-  SyncService.config.setLoadFromStorage(async (name: string) => {
-    if (!fs.existsSync(`./test/data/${name}`)) {
-      return null;
-    }
-    return fs.readFileSync(`./test/data/${name}`).toString();
-  });
+  SyncService.initialize(
+    getCloudSyncDate,
+    mapToCommand,
+    saveToStorage,
+    loadFromStorage,
+    [new CommandReadAllFolders(initialFolders)]
+  );
   SyncService.config.setSecondsBetweenSyncs(1);
   SyncService.config.setOnlineChecker(async () => true);
   SyncService.config.setMaxConcurrentRequests(1);
   SyncService.config.setDebug(true);
-  SyncService.startSync(getCloudSyncDate, mapToCommand, [
-    new CommandReadAllFolders(initialFolders),
-  ]);
+  SyncService.startSync();
 }
 
 export function cleanupSyncService() {
@@ -63,5 +73,8 @@ export function cleanupSyncService() {
   }
   if (fs.existsSync("./test/data/sync-service-state")) {
     fs.unlinkSync("./test/data/sync-service-state");
+  }
+  if (fs.existsSync("./test/data")) {
+    fs.rmdirSync("./test/data");
   }
 }

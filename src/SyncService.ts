@@ -7,12 +7,12 @@ import {
   GetInfoCommand,
   NewInfoCommand,
   ParentCommand,
-  QueueCommand,
+  ModifyCommand,
   ReadAllCommand,
 } from "./SyncServiceBaseCommands";
 
 export class SyncService {
-  static syncInterval: NodeJS.Timeout | null = null;
+  private static syncInterval: NodeJS.Timeout | null = null;
   static getConfig() {
     return {
       maxConcurrentRequests: SyncData.maxConcurrentRequests,
@@ -24,14 +24,6 @@ export class SyncService {
   }
   static get config() {
     return {
-      setSaveToStorage: (
-        func: (name: string, data: string) => Promise<void>
-      ) => {
-        SyncData.saveToStorageHelper = func;
-      },
-      setLoadFromStorage: (func: (name: string) => Promise<string | null>) => {
-        SyncData.loadFromStorageHelper = func;
-      },
       enableEncryption: (encryptionKey: string) => {
         SyncData.encrypt = true;
         SyncData.encryptionKey = encryptionKey;
@@ -100,7 +92,7 @@ export class SyncService {
       if (
         !localVersion &&
         cloudVersion &&
-        SyncData.deletedresourceIds.includes(resourceId)
+        SyncData.deletedResourceIds.includes(resourceId)
       ) {
         continue; // skip deleted resources
       }
@@ -127,12 +119,12 @@ export class SyncService {
    * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
    */
   static async addCommand(
-    newCommand: QueueCommand | GetInfoCommand
+    newCommand: ModifyCommand | GetInfoCommand
   ): Promise<null | Record<string, any>> {
     if (newCommand instanceof GetInfoCommand) {
       return SyncService.read(newCommand);
     }
-    let command = newCommand as QueueCommand;
+    let command = newCommand;
     // convert create commands to update commands for existing resources
     const existingResource = await SyncData.getLocalResource(
       command.resourceType,
@@ -141,23 +133,19 @@ export class SyncService {
     if (existingResource && command instanceof CreateCommand) {
       command = SyncData.convertCreateToUpdate(command);
     }
-    // handle write and delete operations locally
+    // locally handle write and delete operations immediately
     if (command instanceof NewInfoCommand) {
-      const writeCommand = command as NewInfoCommand;
-      SyncData.simplifyResourceInfo(
-        writeCommand.resourceInfo,
-        existingResource
-      );
-      if (Object.keys(writeCommand.resourceInfo.data).length == 0) {
+      SyncData.simplifyResourceInfo(command.resourceInfo, existingResource);
+      if (Object.keys(command.resourceInfo.data).length == 0) {
         if (SyncData.debug) {
           console.log("No changes to save. Command not added to Sync Service.");
         }
         return null;
       }
-      await SyncData.saveResources([writeCommand.resourceInfo], false);
+      await SyncData.saveResources([command.resourceInfo], false);
     } else if (command instanceof DeleteCommand) {
       await SyncData.deleteResource(command.resourceType, command.resourceId);
-      SyncData.deletedresourceIds.push(command.resourceId);
+      SyncData.deletedResourceIds.push(command.resourceId);
     } else {
       throw new Error("Invalid command type");
     }
@@ -172,18 +160,31 @@ export class SyncService {
     await SyncData.saveState();
     return null;
   }
+  static async initialize(
+    getCloudSyncDate: () => Promise<Date>,
+    mapToCommand: mapToCommandFunc,
+    saveToStorage: (name: string, data: string) => Promise<any>,
+    loadFromStorage: (name: string) => Promise<string | null>,
+    initializationCommands: ReadAllCommand[]
+  ) {
+    SyncData.saveToStorageHelper = saveToStorage;
+    SyncData.loadFromStorageHelper = loadFromStorage;
+    SyncData.mapToCommand = mapToCommand;
+    SyncData.initializationCommands = initializationCommands;
+    SyncData.getCloudSyncDate = getCloudSyncDate;
+    SyncData.initialized = true;
+  }
+  static get initialized() {
+    return SyncData.initialized;
+  }
   /**
    * Starts the sync process.
    * This method will load the queues from the local JSON file, and then start the sync interval.
    * If the sync interval is already running, this method will do nothing.
    */
-  static async startSync(
-    getCloudSyncDateHook: () => Promise<Date>,
-    mapToCommand: mapToCommandFunc,
-    initializationCommands?: ReadAllCommand[]
-  ): Promise<void> {
-    if (SyncData.debug) {
-      console.log("Starting sync service...");
+  static async startSync(): Promise<void> {
+    if (!SyncData.initialized) {
+      throw new Error("Sync Service not initialized.");
     }
     if (this.syncInterval) {
       if (SyncData.debug) {
@@ -191,13 +192,15 @@ export class SyncService {
       }
       return;
     }
-    SyncData.mapToCommand = mapToCommand;
+    if (SyncData.debug) {
+      console.log("Starting sync service...");
+    }
     try {
       await SyncData.loadState();
-      const cloudSyncDate = await getCloudSyncDateHook();
+      const cloudSyncDate = await SyncData.getCloudSyncDate();
       await SyncData.updateLocalResources(
         cloudSyncDate,
-        initializationCommands
+        SyncData.initializationCommands
       );
       if (SyncData.debug) {
         console.log("Notifying resource listeners of initial data...");
@@ -247,7 +250,7 @@ export class SyncService {
    * If there are no commands to execute, or the maximum number of concurrent requests has been reached, this method will do nothing.
    * If a command fails, it will be added to the error queue.
    */
-  static async sync(): Promise<void> {
+  private static async sync(): Promise<void> {
     try {
       // check if device is online
       const isOnline = await SyncData.getIsOnline();
@@ -278,7 +281,7 @@ export class SyncService {
       const resourceIdsInProgress = SyncData.inProgressQueue.map(
         (command) => command.resourceId
       );
-      function notAlreadyInProgress(command: QueueCommand) {
+      function notAlreadyInProgress(command: ModifyCommand) {
         return (
           !commandIdsInProgress.includes(command.commandId) &&
           !resourceIdsInProgress.includes(command.resourceId)
@@ -316,7 +319,7 @@ export class SyncService {
                 inProgressCommand.commandId !== command.commandId
             );
             if (command instanceof DeleteCommand) {
-              SyncData.deletedresourceIds = SyncData.deletedresourceIds.filter(
+              SyncData.deletedResourceIds = SyncData.deletedResourceIds.filter(
                 (resourceId) => resourceId !== command.resourceId
               );
             }
@@ -369,15 +372,17 @@ export class SyncService {
     }
   }
   static async stopSync(): Promise<void> {
-    if (SyncData.debug) {
-      console.log("Stopping sync service...");
-    }
     if (this.syncInterval) {
+      if (SyncData.debug) {
+        console.log("Stopping sync service...");
+      }
       clearInterval(this.syncInterval);
       this.syncInterval = null;
       if (SyncData.debug) {
         console.log("Sync service stopped.");
       }
+    } else if (SyncData.debug) {
+      console.log("Sync service already stopped.");
     }
   }
 }

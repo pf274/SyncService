@@ -7,7 +7,7 @@ import {
   GetInfoCommand,
   NewInfoCommand,
   ParentCommand,
-  QueueCommand,
+  ModifyCommand,
   ReadAllCommand,
   UpdateCommand,
 } from "./SyncServiceBaseCommands";
@@ -16,7 +16,7 @@ export type mapToCommandFunc = (
   commandName: CommandNames,
   resourceId: string,
   resourceInfo: ISyncResource
-) => QueueCommand | null;
+) => ModifyCommand | null;
 
 type saveToStorageHook = (
   name: string,
@@ -33,10 +33,10 @@ export type StoredState = {
   queue: QueueType;
   errorQueue: QueueType;
   syncDate: string | null;
-  deletedresourceIds: string[];
+  deletedResourceIds: string[];
 };
 type loadFromStorageHelperHook = (name: string) => Promise<string | null>;
-type QueueType = QueueCommand[];
+type QueueType = ModifyCommand[];
 
 export class SyncData {
   static queue: QueueType = [];
@@ -59,7 +59,12 @@ export class SyncData {
     string,
     (resources: ISyncResource[]) => any
   > = {};
-  static deletedresourceIds: string[] = [];
+  static deletedResourceIds: string[] = [];
+  static initializationCommands: ReadAllCommand[];
+  static getCloudSyncDate: () => Promise<Date> = async () => {
+    throw new Error("getCloudSyncDate not set");
+  };
+  static initialized: boolean = false;
 
   static async updateLocalResources(
     cloudSyncDate: Date,
@@ -159,7 +164,7 @@ export class SyncData {
           (otherCommand) =>
             otherCommand.commandId !== mergeableCommand.commandId
         );
-        SyncData.queue.push(mergedCommand as QueueCommand);
+        SyncData.queue.push(mergedCommand as ModifyCommand);
         SyncData.queue.sort(
           (a, b) =>
             a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
@@ -311,6 +316,12 @@ export class SyncData {
     }
   };
   /**
+   * Saves the resource data document to storage.
+   */
+  static saveData = async (data: StoredData) => {
+    await SyncData.saveToStorage(`${SyncData.storagePrefix}-data`, data);
+  };
+  /**
    * Saves data to storage
    */
   static saveToStorage: saveToStorageHook = async (
@@ -356,7 +367,7 @@ export class SyncData {
     return returnVal;
   };
   /**
-   * Must be overridden to provide a custom implementation of the saveToStorage function.
+   * Must be overridden to provide a custom implementation of the loadFromStorage function.
    */
   static loadFromStorageHelper: loadFromStorageHelperHook = async (name) => {
     throw new Error("No storage available");
@@ -399,7 +410,7 @@ export class SyncData {
         }
         newData[resourceType][resourceId] = newResource;
       }
-      await SyncData.saveToStorage(`${SyncData.storagePrefix}-data`, newData);
+      await SyncData.saveData(newData);
       if (notifyListeners) {
         for (const resourceType of resourceTypes) {
           if (SyncData.resourceListeners[resourceType]) {
@@ -436,7 +447,7 @@ export class SyncData {
       if (newData[resourceType][resourceId]) {
         delete newData[resourceType][resourceId];
       }
-      await SyncData.saveToStorage(`${SyncData.storagePrefix}-data`, newData);
+      await SyncData.saveData(newData);
       if (SyncData.resourceListeners[resourceType]) {
         const callbackFunction = SyncData.resourceListeners[resourceType];
         callbackFunction(Object.values(newData[resourceType]));
@@ -458,7 +469,7 @@ export class SyncData {
         queue: SyncData.queue,
         errorQueue: SyncData.errorQueue,
         syncDate: SyncData.syncDate,
-        deletedresourceIds: SyncData.deletedresourceIds,
+        deletedResourceIds: SyncData.deletedResourceIds,
       };
       await SyncData.saveToStorage(`${SyncData.storagePrefix}-state`, newData);
     });
@@ -512,7 +523,7 @@ export class SyncData {
       }
     }
     SyncData.syncDate = data.syncDate ? new Date(data.syncDate) : null;
-    SyncData.deletedresourceIds = data.deletedresourceIds || [];
+    SyncData.deletedResourceIds = data.deletedResourceIds || [];
   }
 
   /**

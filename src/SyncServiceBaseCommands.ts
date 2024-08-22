@@ -50,7 +50,7 @@ export abstract class ReadAllCommand extends GetInfoCommand {
   commandName = CommandNames.ReadAll;
 }
 
-export abstract class QueueCommand extends ParentCommand {
+export abstract class ModifyCommand extends ParentCommand {
   get resourceId(): string {
     return (
       (this as any as NewInfoCommand).resourceInfo.resourceId ||
@@ -63,7 +63,7 @@ export abstract class QueueCommand extends ParentCommand {
   }>;
 }
 
-export abstract class NewInfoCommand extends QueueCommand {
+export abstract class NewInfoCommand extends ModifyCommand {
   abstract resourceInfo: ISyncResource;
   canMerge(newCommand: ParentCommand): boolean {
     if (newCommand instanceof NewInfoCommand) {
