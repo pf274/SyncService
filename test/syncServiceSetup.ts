@@ -1,25 +1,29 @@
 import { SyncService } from "../src/SyncService";
 import * as fs from "fs";
-import { mapToCommandFunc } from "../src/SyncTypes";
 import { CommandDeleteFolder } from "./testOperations/DeleteFolder";
 import { CommandCreateFolder } from "./testOperations/CreateFolder";
 import { CommandUpdateFolder } from "./testOperations/UpdateFolder";
 import { CommandNames } from "../src/interfaces/CommandNames";
 import { CommandReadAllFolders } from "./testOperations/ReadAllFolders";
 import { ISyncResource } from "../src/interfaces/ISyncResource";
+import { mapToCommandFunc } from "../src/SyncData";
 
-const mapToCommand: mapToCommandFunc = (
-  resourceType,
-  commandName,
-  commandRecord
-) => {
+const mapToCommand: mapToCommandFunc = (commandName, localId, resourceInfo) => {
   switch (commandName) {
     case CommandNames.Delete:
-      return new CommandDeleteFolder(commandRecord!.localId);
+      return new CommandDeleteFolder(localId);
     case CommandNames.Create:
-      return new CommandCreateFolder(commandRecord!, commandRecord!.localId);
+      return new CommandCreateFolder(
+        resourceInfo!.data,
+        localId,
+        resourceInfo!.updatedAt
+      );
     case CommandNames.Update:
-      return new CommandUpdateFolder(commandRecord!, commandRecord!.localId);
+      return new CommandUpdateFolder(
+        resourceInfo!.data,
+        localId,
+        resourceInfo!.updatedAt
+      );
     default:
       throw new Error("Invalid commandName");
   }

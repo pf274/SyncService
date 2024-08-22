@@ -3,7 +3,7 @@ import { SyncService } from "./src/SyncService";
 import {
   CreateCommand,
   DeleteCommand,
-  GetAllResourcesOfTypeCommand,
+  ReadAllCommand,
   ReadCommand,
   UpdateCommand,
 } from "./src/SyncServiceBaseCommands";
@@ -17,7 +17,7 @@ export {
   ReadCommand,
   UpdateCommand,
   DeleteCommand,
-  GetAllResourcesOfTypeCommand,
+  ReadAllCommand,
 };
 
 const Commands = {
@@ -25,7 +25,7 @@ const Commands = {
   ReadCommand,
   UpdateCommand,
   DeleteCommand,
-  GetAllResourcesOfTypeCommand,
+  ReadAllCommand,
 };
 
 export default { SyncService, Commands };

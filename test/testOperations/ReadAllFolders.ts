@@ -1,19 +1,14 @@
-import { GetAllResourcesOfTypeCommand } from "../../src/SyncServiceBaseCommands";
-import { ICommand } from "../../src/interfaces/ICommand";
+import { ReadAllCommand } from "../../src/SyncServiceBaseCommands";
 import { ISyncResource } from "../../src/interfaces/ISyncResource";
-import { generateUuid } from "../../src/uuid";
 
-export class CommandReadAllFolders extends GetAllResourcesOfTypeCommand {
+export class CommandReadAllFolders extends ReadAllCommand {
+  localIds: string[];
   returnRecords: ISyncResource[];
+  resourceType: string = "Folder";
   constructor(returnRecords: ISyncResource[]) {
-    super("Folder");
+    super();
     this.returnRecords = returnRecords;
-  }
-  canMerge(newCommand: ICommand) {
-    return false;
-  }
-  canCancelOut(newCommand: ICommand): boolean {
-    return false;
+    this.localIds = returnRecords.map((record) => record.localId);
   }
   getCloudCopies = async () => {
     return {

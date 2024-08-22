@@ -1,32 +1,20 @@
 import { ReadCommand } from "../../src/SyncServiceBaseCommands";
-import { CommandNames } from "../../src/interfaces/CommandNames";
-import { ICommand } from "../../src/interfaces/ICommand";
+import { ISyncResource } from "../../src/interfaces/ISyncResource";
 
 export class CommandReadFolder extends ReadCommand {
   returnRecord: Record<string, any>;
-  getCloudCopy = async () => {
+  resourceInfo: ISyncResource;
+  resourceType: string = "Folder";
+  localIds: string[] = [];
+  constructor(localId: string, returnRecord: Record<string, any>) {
+    super();
+    this.returnRecord = returnRecord;
+    this.localIds = [localId];
+  }
+  getCloudCopies = async () => {
     return {
       success: true,
-      retrievedRecords: [
-        {
-          resourceType: "Folder",
-          localId: this.localId,
-          data: {
-            ...this.returnRecord,
-            localId: this.localId,
-          },
-        },
-      ],
+      retrievedRecords: [this.resourceInfo],
     };
   };
-  constructor(localId: string, returnRecord: Record<string, any>) {
-    super("Folder", CommandNames.Read, localId);
-    this.returnRecord = returnRecord;
-  }
-  canMerge(newCommand: ICommand) {
-    return false;
-  }
-  canCancelOut(newCommand: ICommand): boolean {
-    return false;
-  }
 }
