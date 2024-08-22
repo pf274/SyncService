@@ -13,10 +13,7 @@ export abstract class ParentCommand {
 
 export abstract class GetInfoCommand extends ParentCommand {
   abstract resourceIds: string[];
-  abstract getCloudCopies(): Promise<{
-    success: boolean;
-    retrievedRecords: ISyncResource[];
-  }>;
+  abstract getCloudCopies(): Promise<ISyncResource[]>;
   canCancelOut(newCommand: ParentCommand): boolean {
     return false;
   }

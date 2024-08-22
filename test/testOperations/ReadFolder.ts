@@ -1,5 +1,5 @@
 import { ReadCommand } from "../../src/SyncServiceBaseCommands";
-import { ISyncResource } from "../../src/interfaces/ISyncResource";
+import { ISyncResource } from "../../src/ISyncResource";
 
 export class CommandReadFolder extends ReadCommand {
   returnRecord: Record<string, any>;
@@ -12,9 +12,6 @@ export class CommandReadFolder extends ReadCommand {
     this.resourceIds = [resourceId];
   }
   getCloudCopies = async () => {
-    return {
-      success: true,
-      retrievedRecords: [this.resourceInfo],
-    };
+    return [this.resourceInfo];
   };
 }

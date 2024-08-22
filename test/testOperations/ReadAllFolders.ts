@@ -11,9 +11,6 @@ export class CommandReadAllFolders extends ReadAllCommand {
     this.resourceIds = returnRecords.map((record) => record.resourceId);
   }
   getCloudCopies = async () => {
-    return {
-      success: true,
-      retrievedRecords: this.returnRecords,
-    };
+    return this.returnRecords;
   };
 }

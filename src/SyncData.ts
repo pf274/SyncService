@@ -98,8 +98,7 @@ export class SyncData {
               `Executing initialization command for resources of type '${command.resourceType}'...`
             );
           }
-          const response = await command.getCloudCopies();
-          const retrievedRecords = response.retrievedRecords;
+          const retrievedRecords = await command.getCloudCopies();
           if (SyncData.debug) {
             console.log(
               `Retrieved ${retrievedRecords?.length || 0} resources of type '${
@@ -244,8 +243,7 @@ export class SyncData {
     const localData = (await SyncData.loadFromStorage(
       `${SyncData.storagePrefix}-data`
     )) as StoredData;
-    const cloudRecords: ISyncResource[] = (await command.getCloudCopies())
-      .retrievedRecords;
+    const cloudRecords: ISyncResource[] = await command.getCloudCopies();
     const localRecords: ISyncResource[] = Object.keys(
       localData[command.resourceType] || {}
     ).map((resourceId) => ({

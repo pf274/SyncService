@@ -6,19 +6,27 @@ The Sync Service npm package is a powerful tool for synchronizing data across mu
 
 ## Features
 
-- Real-time synchronization: The Sync Service ensures that data changes are made locally in real-time, handling cloud synchronization in the background.
+- Real-time Synchronization: The Sync Service ensures that data changes are made locally in real-time, handling cloud synchronization in the background.
 
-- Conflict resolution: The sync service prioritizes the most recent versions of resources
+- Conflict resolution: The Sync Service returns the most recent versions of resources.
 
-- Cross-platform compatibility: The Sync Service is designed to work across different platforms, including web, mobile, and desktop applications, making it easy to integrate into any project.
-
-- Scalability: The Sync Service is built to handle large amounts of data and can scale effortlessly as your application grows. It also allows synchronization operations to be merged together to save bandwidth. For instance, creating and deleting the same resource will cancel out.
+- Cross-platform Compatibility: The Sync Service is designed to work across different platforms, including web, mobile, and desktop applications, making it easy to integrate into any project.
 
 - Offline-Compatible: The Sync Service is meant for offline compatibility, meaning your device should be able to run completely offline, then sync back to the cloud once your connection is restored.
 
+- Operation Efficiency: The Sync Service is capable of consolidating operations in order to save bandwidth and reduce your backend costs.
+
+- Encryption: The Sync Service can be configured to encrypt all your data automatically.
+
+- Resumable: The Sync Service ensures that no operations are lost, and resumes where it left off when booting up.
+
+- User Separation: The Sync Service can handle multiple client-side users without mixing their data.
+
+- State Integration: The Sync Service is capable of updating react state variables.
+
 ## Installation
 
-To install the Sync Service npm package, simply run the following command:
+To install the Sync Service npm package, run the following command:
 
 ```
 npm install node-js-light-sync
@@ -34,9 +42,11 @@ Ensure that your backend service keeps track of when your user last made a chang
 
 For example, say I have a `user` table with a `syncDate` property. When the user creates or edits a file, this value is updated and also returned in the api call.
 
-### Create commands
+This allows your frontend to know when there are changes that need to be pulled in by comparing a locally-stored sync date to the cloud's sync date.
 
-Create commands to use in your sync service.
+### Configure commands
+
+Configure commands to use in your sync service.
 
 For each command, extend from one of the base commands provided by this package, such as `CreateCommand`. Implement the abstract methods.
 
@@ -70,38 +80,34 @@ export class CommandCreateFolder extends CreateCommand {
 }
 ```
 
-The sync method should always return an object with the key/value pairs `newSyncDate` and `newRecord`. If the api call fails, return a newSyncDate of `null` and an empty object for `newRecord`.
+Create, update, and delete commands need a sync method. The sync method should return an object with the key/value pairs `newSyncDate` and `newResourceInfo`.  
+`newResourceInfo` is an object containing these key/value pairs:
+- `resourceType` - string. In our example above, the resource type was `Folder`.
+- `resourceId` - string. The unique resource id.
+- `data` - object. The resource's information.
+- `updatedAt` - Date. When the resource was last updated.
 
-### Import SyncService
+Read and ReadAll operations need a getCloudCopies method. This returns an array of resources from your server. Each resource is an object with the same key/value pairs as mentioned in `newResourceInfo`.
 
-Import the Sync Service module into your code
+### Initialization
+Before you can start the sync service, you must call SyncService.initialize(). The function takes several parameters:
+- `getCloudSyncDate` - should return the user's sync date from your server, or null if the call fails.
+- `commandMapper` - should take in the command name, the resource id, and the resource info. It should return either an instance of one of your command classes, or null. The resource info contains the same information as `newResourceInfo` mentioned above.
+- `saveToStorage` - This function should accept a `name` parameter specifying what it should name the document in your storage system, along with a `data` parameter specifying what should be saved.
+- `loadFromStorage` - This function should accept a `name` parameter specifying what document it should load from your storage system, and should return whatever is stored under that name. If nothing is found, it should return null.
+- `initializationCommands` - As an optional fourth parameter, you may specify 'Read All' operations to be executed when the service starts. When starting, the sync service will check the locally stored `Sync Date` value and compare it with the cloud's `Sync Date` value, and if the cloud has a more recent sync date, it will use these commands to get a fresh copy of the data before executing commands.
 
-```javascript
-import { SyncService } from "node-js-light-sync";
-```
-
-### Configure the Sync Service
-
+### Additional Configuration
 The Sync Service has several configurable settings. Access these settings under `SyncService.config`.
-
 - `enableEncryption` - takes the encryption key as a parameter. Encryption is disabled by default. Using this command will enable it.
 - `disableEncryption` - re-disables encryption.
 - `setOnlineChecker` - takes a function as a parameter that should return a boolean value for whether the client is online. A default function is provided.
 - `setMaxConcurrentRequests` - specify the number of API calls to run at once. Note that operations for the same resource will always be run sequentially and not concurrently. The default is 3 operations.
 - `setMinCommandAgeInSeconds` - specify how long the sync service should wait to execute commands. This can be useful if you want to allow the sync service more time to merge operations before sending them off. For example, if a user creates a resource and edits it soon after, having enough time to merge these two operations before executing them can reduce the number of API calls you are making. The default is 0 seconds.
 - `setSecondsBetweenSyncs` - specify how long the service should wait between syncs. The default is 5 seconds.
-- `setStoragePrefix` - specify what prefix to use for storage. The default is `sync-service`. This is useful if you want to allow multiple users to save data on the device, for example.
+- `setStoragePrefix` - specify what prefix to use for storage. The default is `sync-service`. This is useful if you want to allow multiple users to save data on the device.
 - `setResourceListener` - allows you to specify a listener function that takes in the updated array of a resource type and does whatever you want with it. This is useful if you want to save the array in react state, for example.
 - `setDebug` - toggle debug messages. Default is false.
-
-
-### Initialization
-Before you can start the sync service, you must call SyncService.initialize(). The function takes several parameters:
-- `getCloudSyncDate` - should return the user's sync date from your server, or null if the call fails.
-- `commandMapper` - should take in the command name, the resource id, and the resource info. It should return either an instance of one of your command classes, or null.
-- `saveToStorage` - This function should accept a `name` parameter specifying what it should name the document in your storage system, along with a - `record` parameter specifying what should be saved.
-- `loadFromStorage` - This function should accept a `name` parameter specifying what it should load from your storage system, and should return whatever is stored under that name. If nothing is found, it should return null;
-- `initializationCommands` - As an optional fourth parameter, you may specify 'Read All' operations to be executed when the service boots up. When booting up, the sync service will check the locally stored `Sync Date` value and compare it with the cloud's `Sync Date` value, and if the cloud has a more recent sync date, it will use these commands to get a fresh copy of the data before executing commands.
 
 ### Start Syncing
 
