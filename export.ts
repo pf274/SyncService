@@ -26,4 +26,4 @@ const Commands = {
   ReadAllCommand,
 };
 
-export default { SyncService, Commands };
+export default { SyncService, Commands, CommandNames };

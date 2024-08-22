@@ -41,58 +41,32 @@ Create commands to use in your sync service.
 For each command, extend from one of the base commands provided by this package, such as `CreateCommand`. Implement the abstract methods.
 
 ```javascript
-export class CommandCreateVideo extends CreateCommand {
-  constructor(commandRecord: Record<string, any>, resourceId?: string) {
-    super("Video", CommandNames.Create, resourceId || generateUuid(), commandRecord);
-  }
-  canMerge(other: ICommand) {
-    if (other.resourceId === this.resourceId) {
-      if (other.commandName == CommandNames.Update) {
-        return true;
-      }
-    }
-    return false;
-  }
-  canCancelOut(other: ICommand): boolean {
-    if (other.resourceId === this.resourceId) {
-      if (other.commandName === CommandNames.Delete) {
-        return true;
-      }
-    }
-    return false;
-  }
-  private getFetchConfig() {
-    const config = {
-      url: "yourAPIEndpoint",
-      init: {
-        method: 'POST',
-        body: JSON.stringify({
-          ...this.commandRecord,
-          resourceId: this.resourceId,
-        }),
-        headers: {
-          'Authorization': 'Bearer blahBlahBlah'
-        }
-      }
-    }
-    return config;
-  }
-  sync = async() => {
-    const config = this.getFetchConfig();
-    const response = await fetch(config.url, config.init);
-    const body: Record<string, any> = await response.json();
-    if (!response.ok) {
-      return {newSyncDate: null, newRecord: {}};
-    }
-    const headers = this.getHeaders(response);
-    if (!headers.sync_date) {
-      throw new Error('Sync date not found in headers for CommandCreateVideo');
-    }
-    return {
-      newSyncDate: new Date(headers.sync_date),
-      newRecord: body
+export class CommandCreateFolder extends CreateCommand {
+  resourceInfo: ISyncResource;
+  resourceType: string = "Folder";
+  constructor(
+    commandRecord: Record<string, any>,
+    resourceId?: string,
+    updatedAt?: Date
+  ) {
+    super();
+    this.resourceInfo = {
+      resourceType: this.resourceType,
+      resourceId: resourceId || generateUuid(),
+      data: commandRecord,
+      updatedAt: updatedAt || new Date(),
     };
   }
+  sync = async () => {
+    const response = await axios.post('yourendpoint', this.resourceInfo.data, config);
+    if (!response.headers.sync_date) {
+      throw new Error('Create folder command failed to return a sync date header');
+    }
+    return {
+      newSyncDate: new Date(response.headers.sync_date),
+      newResourceInfo: response.data,
+    };
+  };
 }
 ```
 
@@ -113,47 +87,25 @@ The Sync Service has several configurable settings. Access these settings under 
 - `enableEncryption` - takes the encryption key as a parameter. Encryption is disabled by default. Using this command will enable it.
 - `disableEncryption` - re-disables encryption.
 - `setOnlineChecker` - takes a function as a parameter that should return a boolean value for whether the client is online. A default function is provided.
-- `setLoadFromStorage` - takes a function as a parameter. This function should accept a `name` parameter specifying what it should load from your storage system, and should return whatever is stored under that name. If nothing is found, it should return an empty object.
 - `setMaxConcurrentRequests` - specify the number of API calls to run at once. Note that operations for the same resource will always be run sequentially and not concurrently. The default is 3 operations.
 - `setMinCommandAgeInSeconds` - specify how long the sync service should wait to execute commands. This can be useful if you want to allow the sync service more time to merge operations before sending them off. For example, if a user creates a resource and edits it soon after, having enough time to merge these two operations before executing them can reduce the number of API calls you are making. The default is 0 seconds.
-- `setSaveToStorage` - takes a function as a parameter. This function should accept a `name` parameter specifying what it should name the document in your storage system, along with a `record` parameter specifying what should be saved.
 - `setSecondsBetweenSyncs` - specify how long the service should wait between syncs. The default is 5 seconds.
 - `setStoragePrefix` - specify what prefix to use for storage. The default is `sync-service`. This is useful if you want to allow multiple users to save data on the device, for example.
 - `setResourceListener` - allows you to specify a listener function that takes in the updated array of a resource type and does whatever you want with it. This is useful if you want to save the array in react state, for example.
 - `setDebug` - toggle debug messages. Default is false.
 
+
+### Initialization
+Before you can start the sync service, you must call SyncService.initialize(). The function takes several parameters:
+- `getCloudSyncDate` - should return the user's sync date from your server, or null if the call fails.
+- `commandMapper` - should take in the command name, the resource id, and the resource info. It should return either an instance of one of your command classes, or null.
+- `saveToStorage` - This function should accept a `name` parameter specifying what it should name the document in your storage system, along with a - `record` parameter specifying what should be saved.
+- `loadFromStorage` - This function should accept a `name` parameter specifying what it should load from your storage system, and should return whatever is stored under that name. If nothing is found, it should return null;
+- `initializationCommands` - As an optional fourth parameter, you may specify 'Read All' operations to be executed when the service boots up. When booting up, the sync service will check the locally stored `Sync Date` value and compare it with the cloud's `Sync Date` value, and if the cloud has a more recent sync date, it will use these commands to get a fresh copy of the data before executing commands.
+
 ### Start Syncing
 
-Before starting your sync service, you'll need to provide two functions:
-
-- `getSyncDate` - should return the user's sync date from your server, or null if the call fails.
-- `commandMapper` - should take in the resource type as a string, the command name, and an optional commandRecord. It should return either an instance of one of your command classes, or null.
-
-Example of a commandMapper:
-
-```javascript
-function commandMapper(resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>, resourceId?: string) {
-  if (resourceType === 'Video') {
-    if (commandName === CommandNames.Create) {
-      return new CommandCreateVideo(commandRecord!, resourceId!);
-    }
-  }
-  return null;
-}
-```
-
 Finally, start the sync service!
-
-```javascript
-sync.startSync(getSyncDate, commandMapper);
-```
-
-As an optional third parameter to `startSync()`, you may specify 'Read All' operations to be executed when the service boots up. When booting up, the sync service will check the locally stored `Sync Date` value and compare it with the cloud's `Sync Date` value, and if the cloud has a more recent sync date, it will use these commands to get a fresh copy of the data before executing commands.
-
-```javascript
-const getAllVideos = new CommandGetAllVideos();
-await SyncService.startSync(getSyncDate, commandMapper, [getAllVideos]);
-```
 
 ### Adding commands
 
