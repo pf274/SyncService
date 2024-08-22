@@ -1,4 +1,4 @@
-import { CommandNames } from "./src/interfaces/CommandNames";
+import { CommandNames } from "./src/CommandNames";
 import { SyncService } from "./src/SyncService";
 import {
   CreateCommand,
@@ -7,12 +7,10 @@ import {
   ReadCommand,
   UpdateCommand,
 } from "./src/SyncServiceBaseCommands";
-import { ICommand } from "./src/interfaces/ICommand";
 
 export {
   SyncService,
   CommandNames,
-  ICommand,
   CreateCommand,
   ReadCommand,
   UpdateCommand,

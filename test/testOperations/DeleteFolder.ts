@@ -1,13 +1,11 @@
 import { DeleteCommand } from "../../src/SyncServiceBaseCommands";
-import { CommandNames } from "../../src/interfaces/CommandNames";
-import { ICommand } from "../../src/interfaces/ICommand";
 
 export class CommandDeleteFolder extends DeleteCommand {
-  localId: string;
+  resourceId: string;
   resourceType: string = "Folder";
-  constructor(localId: string) {
+  constructor(resourceId: string) {
     super();
-    this.localId = localId;
+    this.resourceId = resourceId;
   }
   sync = async () => {
     return {

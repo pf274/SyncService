@@ -1,6 +1,6 @@
 export interface ISyncResource {
   resourceType: string;
-  localId: string;
+  resourceId: string;
   data: Record<string, any>;
   updatedAt: Date;
 }

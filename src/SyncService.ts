@@ -1,5 +1,4 @@
-import { ICommand } from "./interfaces/ICommand";
-import { ISyncResource } from "./interfaces/ISyncResource";
+import { ISyncResource } from "./ISyncResource";
 import { StoredData, SyncData, mapToCommandFunc } from "./SyncData";
 
 import {
@@ -7,6 +6,7 @@ import {
   DeleteCommand,
   GetInfoCommand,
   NewInfoCommand,
+  ParentCommand,
   QueueCommand,
   ReadAllCommand,
 } from "./SyncServiceBaseCommands";
@@ -83,24 +83,24 @@ export class SyncService {
     const { cloudRecords, localRecords } = await SyncData.getRecordsToCompare(
       command
     );
-    const localIdsToProcess = [
+    const resourceIdsToProcess = [
       ...new Set(
-        [...cloudRecords, ...localRecords].map((record) => record.localId)
+        [...cloudRecords, ...localRecords].map((record) => record.resourceId)
       ),
     ];
     const recordsToReturn: Record<string, any>[] = [];
     const recordsToUpdate: ISyncResource[] = [];
-    for (const localId of localIdsToProcess) {
+    for (const resourceId of resourceIdsToProcess) {
       const cloudVersion = cloudRecords.find(
-        (record) => record.localId === localId
+        (record) => record.resourceId === resourceId
       );
       const localVersion = localRecords.find(
-        (record) => record.localId === localId
+        (record) => record.resourceId === resourceId
       );
       if (
         !localVersion &&
         cloudVersion &&
-        SyncData.deletedLocalIds.includes(localId)
+        SyncData.deletedresourceIds.includes(resourceId)
       ) {
         continue; // skip deleted resources
       }
@@ -136,7 +136,7 @@ export class SyncService {
     // convert create commands to update commands for existing resources
     const existingResource = await SyncData.getLocalResource(
       command.resourceType,
-      command.localId
+      command.resourceId
     );
     if (existingResource && command instanceof CreateCommand) {
       command = SyncData.convertCreateToUpdate(command);
@@ -156,8 +156,8 @@ export class SyncService {
       }
       await SyncData.saveResources([writeCommand.resourceInfo], false);
     } else if (command instanceof DeleteCommand) {
-      await SyncData.deleteResource(command.resourceType, command.localId);
-      SyncData.deletedLocalIds.push(command.localId);
+      await SyncData.deleteResource(command.resourceType, command.resourceId);
+      SyncData.deletedresourceIds.push(command.resourceId);
     } else {
       throw new Error("Invalid command type");
     }
@@ -275,16 +275,16 @@ export class SyncService {
       const commandIdsInProgress = SyncData.inProgressQueue.map(
         (command) => command.commandId
       );
-      const localIdsInProgress = SyncData.inProgressQueue.map(
-        (command) => command.localId
+      const resourceIdsInProgress = SyncData.inProgressQueue.map(
+        (command) => command.resourceId
       );
       function notAlreadyInProgress(command: QueueCommand) {
         return (
           !commandIdsInProgress.includes(command.commandId) &&
-          !localIdsInProgress.includes(command.localId)
+          !resourceIdsInProgress.includes(command.resourceId)
         );
       }
-      function isOldEnough(command: ICommand) {
+      function isOldEnough(command: ParentCommand) {
         return (
           command.commandCreationDate.getTime() <=
           new Date().getTime() - SyncData.minCommandAgeInSeconds * 1000
@@ -316,8 +316,8 @@ export class SyncService {
                 inProgressCommand.commandId !== command.commandId
             );
             if (command instanceof DeleteCommand) {
-              SyncData.deletedLocalIds = SyncData.deletedLocalIds.filter(
-                (localId) => localId !== command.localId
+              SyncData.deletedresourceIds = SyncData.deletedresourceIds.filter(
+                (resourceId) => resourceId !== command.resourceId
               );
             }
             if (newSyncDate) {
@@ -333,7 +333,7 @@ export class SyncService {
                 }
                 await SyncData.deleteResource(
                   command.resourceType,
-                  command.localId
+                  command.resourceId
                 );
               } else if (command instanceof NewInfoCommand) {
                 if (!newResourceInfo) {

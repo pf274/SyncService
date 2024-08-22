@@ -1,14 +1,14 @@
 import { ReadAllCommand } from "../../src/SyncServiceBaseCommands";
-import { ISyncResource } from "../../src/interfaces/ISyncResource";
+import { ISyncResource } from "../../src/ISyncResource";
 
 export class CommandReadAllFolders extends ReadAllCommand {
-  localIds: string[];
+  resourceIds: string[];
   returnRecords: ISyncResource[];
   resourceType: string = "Folder";
   constructor(returnRecords: ISyncResource[]) {
     super();
     this.returnRecords = returnRecords;
-    this.localIds = returnRecords.map((record) => record.localId);
+    this.resourceIds = returnRecords.map((record) => record.resourceId);
   }
   getCloudCopies = async () => {
     return {

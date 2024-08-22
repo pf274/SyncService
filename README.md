@@ -42,11 +42,11 @@ For each command, extend from one of the base commands provided by this package,
 
 ```javascript
 export class CommandCreateVideo extends CreateCommand {
-  constructor(commandRecord: Record<string, any>, localId?: string) {
-    super("Video", CommandNames.Create, localId || generateUuid(), commandRecord);
+  constructor(commandRecord: Record<string, any>, resourceId?: string) {
+    super("Video", CommandNames.Create, resourceId || generateUuid(), commandRecord);
   }
   canMerge(other: ICommand) {
-    if (other.localId === this.localId) {
+    if (other.resourceId === this.resourceId) {
       if (other.commandName == CommandNames.Update) {
         return true;
       }
@@ -54,7 +54,7 @@ export class CommandCreateVideo extends CreateCommand {
     return false;
   }
   canCancelOut(other: ICommand): boolean {
-    if (other.localId === this.localId) {
+    if (other.resourceId === this.resourceId) {
       if (other.commandName === CommandNames.Delete) {
         return true;
       }
@@ -68,7 +68,7 @@ export class CommandCreateVideo extends CreateCommand {
         method: 'POST',
         body: JSON.stringify({
           ...this.commandRecord,
-          localId: this.localId,
+          resourceId: this.resourceId,
         }),
         headers: {
           'Authorization': 'Bearer blahBlahBlah'
@@ -132,10 +132,10 @@ Before starting your sync service, you'll need to provide two functions:
 Example of a commandMapper:
 
 ```javascript
-function commandMapper(resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>, localId?: string) {
+function commandMapper(resourceType: string, commandName: CommandNames, commandRecord?: Record<string, any>, resourceId?: string) {
   if (resourceType === 'Video') {
     if (commandName === CommandNames.Create) {
-      return new CommandCreateVideo(commandRecord!, localId!);
+      return new CommandCreateVideo(commandRecord!, resourceId!);
     }
   }
   return null;

@@ -1,5 +1,5 @@
 import { CreateCommand } from "../../src/SyncServiceBaseCommands";
-import { ISyncResource } from "../../src/interfaces/ISyncResource";
+import { ISyncResource } from "../../src/ISyncResource";
 import { generateUuid } from "../../src/uuid";
 
 export class CommandCreateFolder extends CreateCommand {
@@ -7,13 +7,13 @@ export class CommandCreateFolder extends CreateCommand {
   resourceType: string = "Folder";
   constructor(
     commandRecord: Record<string, any>,
-    localId?: string,
+    resourceId?: string,
     updatedAt?: Date
   ) {
     super();
     this.resourceInfo = {
       resourceType: this.resourceType,
-      localId: localId || generateUuid(),
+      resourceId: resourceId || generateUuid(),
       data: commandRecord,
       updatedAt: updatedAt || new Date(),
     };

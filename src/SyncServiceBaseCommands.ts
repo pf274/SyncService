@@ -1,9 +1,8 @@
-import { ICommand } from "./interfaces/ICommand";
 import { generateUuid } from "./uuid";
-import { CommandNames } from "./interfaces/CommandNames";
-import { ISyncResource } from "./interfaces/ISyncResource";
+import { CommandNames } from "./CommandNames";
+import { ISyncResource } from "./ISyncResource";
 
-export abstract class ParentCommand implements ICommand {
+export abstract class ParentCommand {
   abstract resourceType: string;
   abstract commandName: CommandNames;
   abstract canMerge(newCommand: ParentCommand): boolean;
@@ -30,7 +29,7 @@ export abstract class ParentCommand implements ICommand {
 }
 
 export abstract class GetInfoCommand extends ParentCommand {
-  abstract localIds: string[];
+  abstract resourceIds: string[];
   abstract getCloudCopies(): Promise<{
     success: boolean;
     retrievedRecords: ISyncResource[];
@@ -52,10 +51,10 @@ export abstract class ReadAllCommand extends GetInfoCommand {
 }
 
 export abstract class QueueCommand extends ParentCommand {
-  get localId(): string {
+  get resourceId(): string {
     return (
-      (this as any as NewInfoCommand).resourceInfo.localId ||
-      (this as any as DeleteCommand).localId
+      (this as any as NewInfoCommand).resourceInfo.resourceId ||
+      (this as any as DeleteCommand).resourceId
     );
   }
   abstract sync(): Promise<{
@@ -68,8 +67,8 @@ export abstract class NewInfoCommand extends QueueCommand {
   abstract resourceInfo: ISyncResource;
   canMerge(newCommand: ParentCommand): boolean {
     if (newCommand instanceof NewInfoCommand) {
-      if (newCommand.resourceInfo.localId === this.resourceInfo.localId) {
-        if (newCommand.commandName === CommandNames.Update) {
+      if (newCommand.resourceInfo.resourceId === this.resourceInfo.resourceId) {
+        if (newCommand instanceof UpdateCommand) {
           return true;
         }
       }
@@ -81,7 +80,7 @@ export abstract class CreateCommand extends NewInfoCommand {
   commandName = CommandNames.Create;
   canCancelOut(newCommand: ParentCommand): boolean {
     if (newCommand instanceof DeleteCommand) {
-      if (newCommand.localId === this.resourceInfo.localId) {
+      if (newCommand.resourceId === this.resourceInfo.resourceId) {
         return true;
       }
     }
@@ -97,7 +96,7 @@ export abstract class UpdateCommand extends NewInfoCommand {
 }
 
 export abstract class DeleteCommand extends ParentCommand {
-  abstract localId: string;
+  abstract resourceId: string;
   commandName = CommandNames.Delete;
   canCancelOut(newCommand: ParentCommand): boolean {
     return false;

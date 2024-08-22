@@ -3,25 +3,29 @@ import * as fs from "fs";
 import { CommandDeleteFolder } from "./testOperations/DeleteFolder";
 import { CommandCreateFolder } from "./testOperations/CreateFolder";
 import { CommandUpdateFolder } from "./testOperations/UpdateFolder";
-import { CommandNames } from "../src/interfaces/CommandNames";
+import { CommandNames } from "../src/CommandNames";
 import { CommandReadAllFolders } from "./testOperations/ReadAllFolders";
-import { ISyncResource } from "../src/interfaces/ISyncResource";
+import { ISyncResource } from "../src/ISyncResource";
 import { mapToCommandFunc } from "../src/SyncData";
 
-const mapToCommand: mapToCommandFunc = (commandName, localId, resourceInfo) => {
+const mapToCommand: mapToCommandFunc = (
+  commandName,
+  resourceId,
+  resourceInfo
+) => {
   switch (commandName) {
     case CommandNames.Delete:
-      return new CommandDeleteFolder(localId);
+      return new CommandDeleteFolder(resourceId);
     case CommandNames.Create:
       return new CommandCreateFolder(
         resourceInfo!.data,
-        localId,
+        resourceId,
         resourceInfo!.updatedAt
       );
     case CommandNames.Update:
       return new CommandUpdateFolder(
         resourceInfo!.data,
-        localId,
+        resourceId,
         resourceInfo!.updatedAt
       );
     default:

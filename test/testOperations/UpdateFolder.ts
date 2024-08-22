@@ -1,21 +1,18 @@
 import { UpdateCommand } from "../../src/SyncServiceBaseCommands";
-import { CommandNames } from "../../src/interfaces/CommandNames";
-import { ICommand } from "../../src/interfaces/ICommand";
-import { ISyncResource } from "../../src/interfaces/ISyncResource";
-import { generateUuid } from "../../src/uuid";
+import { ISyncResource } from "../../src/ISyncResource";
 
 export class CommandUpdateFolder extends UpdateCommand {
   resourceType: string = "Folder";
   resourceInfo: ISyncResource;
   constructor(
     commandRecord: Record<string, any>,
-    localId: string,
+    resourceId: string,
     updatedAt?: Date
   ) {
     super();
     this.resourceInfo = {
       resourceType: this.resourceType,
-      localId,
+      resourceId,
       data: commandRecord,
       updatedAt: updatedAt || new Date(),
     };

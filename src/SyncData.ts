@@ -1,5 +1,5 @@
-import { ISyncResource } from "./interfaces/ISyncResource";
-import { CommandNames } from "./interfaces/CommandNames";
+import { ISyncResource } from "./ISyncResource";
+import { CommandNames } from "./CommandNames";
 import CryptoJS from "crypto-js";
 import {
   CreateCommand,
@@ -14,7 +14,7 @@ import {
 
 export type mapToCommandFunc = (
   commandName: CommandNames,
-  localId: string,
+  resourceId: string,
   resourceInfo: ISyncResource
 ) => QueueCommand | null;
 
@@ -26,14 +26,14 @@ type saveToStorageHelperHook = (name: string, data: string) => Promise<void>;
 type loadFromStorageHook = (name: string) => Promise<StoredData | StoredState>;
 export type StoredData = {
   [resourceType: string]: {
-    [localId: string]: ISyncResource;
+    [resourceId: string]: ISyncResource;
   };
 };
 export type StoredState = {
   queue: QueueType;
   errorQueue: QueueType;
   syncDate: string | null;
-  deletedLocalIds: string[];
+  deletedresourceIds: string[];
 };
 type loadFromStorageHelperHook = (name: string) => Promise<string | null>;
 type QueueType = QueueCommand[];
@@ -59,7 +59,7 @@ export class SyncData {
     string,
     (resources: ISyncResource[]) => any
   > = {};
-  static deletedLocalIds: string[] = [];
+  static deletedresourceIds: string[] = [];
 
   static async updateLocalResources(
     cloudSyncDate: Date,
@@ -201,7 +201,7 @@ export class SyncData {
     const createCommand = command as CreateCommand;
     const updateCommand = SyncData.mapToCommand!(
       CommandNames.Update,
-      createCommand.localId,
+      createCommand.resourceId,
       createCommand.resourceInfo
     ) as UpdateCommand;
     if (updateCommand) {
@@ -243,11 +243,13 @@ export class SyncData {
       .retrievedRecords;
     const localRecords: ISyncResource[] = Object.keys(
       localData[command.resourceType] || {}
-    ).map((localId) => ({
-      localId,
+    ).map((resourceId) => ({
+      resourceId,
       resourceType: command.resourceType,
-      data: localData[command.resourceType][localId],
-      updatedAt: new Date(localData[command.resourceType][localId].updatedAt),
+      data: localData[command.resourceType][resourceId],
+      updatedAt: new Date(
+        localData[command.resourceType][resourceId].updatedAt
+      ),
     }));
     return { cloudRecords, localRecords };
   }
@@ -269,7 +271,7 @@ export class SyncData {
     }
     const mergedCommand = SyncData.mapToCommand!(
       commands[0].commandName,
-      commands[0].localId,
+      commands[0].resourceId,
       commands[0].resourceInfo
     ) as NewInfoCommand | null;
     if (mergedCommand) {
@@ -391,11 +393,11 @@ export class SyncData {
       )) as StoredData;
       for (const newResource of newResources) {
         const resourceType = newResource.resourceType;
-        const localId = newResource.localId;
+        const resourceId = newResource.resourceId;
         if (!newData[resourceType]) {
           newData[resourceType] = {};
         }
-        newData[resourceType][localId] = newResource;
+        newData[resourceType][resourceId] = newResource;
       }
       await SyncData.saveToStorage(`${SyncData.storagePrefix}-data`, newData);
       if (notifyListeners) {
@@ -419,10 +421,10 @@ export class SyncData {
    */
   static async deleteResource(
     resourceType: string,
-    localId: string
+    resourceId: string
   ): Promise<void> {
     if (SyncData.debug) {
-      console.log(`Deleting ${resourceType} with localId ${localId}`);
+      console.log(`Deleting ${resourceType} with resourceId ${resourceId}`);
     }
     SyncData.savingDataPromise = SyncData.savingDataPromise.then(async () => {
       const newData = (await SyncData.loadFromStorage(
@@ -431,8 +433,8 @@ export class SyncData {
       if (!newData[resourceType]) {
         newData[resourceType] = {};
       }
-      if (newData[resourceType][localId]) {
-        delete newData[resourceType][localId];
+      if (newData[resourceType][resourceId]) {
+        delete newData[resourceType][resourceId];
       }
       await SyncData.saveToStorage(`${SyncData.storagePrefix}-data`, newData);
       if (SyncData.resourceListeners[resourceType]) {
@@ -456,7 +458,7 @@ export class SyncData {
         queue: SyncData.queue,
         errorQueue: SyncData.errorQueue,
         syncDate: SyncData.syncDate,
-        deletedLocalIds: SyncData.deletedLocalIds,
+        deletedresourceIds: SyncData.deletedresourceIds,
       };
       await SyncData.saveToStorage(`${SyncData.storagePrefix}-state`, newData);
     });
@@ -489,7 +491,7 @@ export class SyncData {
         : []) {
         const commandInstance = SyncData.mapToCommand!(
           savedCommand.commandName,
-          savedCommand.localId,
+          savedCommand.resourceId,
           (savedCommand as any)?.resourceInfo
         );
         if (!commandInstance) {
@@ -510,7 +512,7 @@ export class SyncData {
       }
     }
     SyncData.syncDate = data.syncDate ? new Date(data.syncDate) : null;
-    SyncData.deletedLocalIds = data.deletedLocalIds || [];
+    SyncData.deletedresourceIds = data.deletedresourceIds || [];
   }
 
   /**
@@ -521,7 +523,7 @@ export class SyncData {
    */
   static async getLocalResource(
     type: string,
-    localId: string
+    resourceId: string
   ): Promise<ISyncResource | undefined> {
     const data = (await SyncData.loadFromStorage(
       `${SyncData.storagePrefix}-data`
@@ -529,9 +531,9 @@ export class SyncData {
     if (!data[type]) {
       return undefined;
     }
-    if (!data[type][localId]) {
+    if (!data[type][resourceId]) {
       return undefined;
     }
-    return data[type][localId];
+    return data[type][resourceId];
   }
 }
