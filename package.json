@@ -28,7 +28,8 @@
     "build": "npm run clean && tsc",
     "releasePatch": "npm run build && npm version patch && npm publish",
     "releaseMinor": "npm run build && npm version minor && npm publish",
-    "releaseMajor": "npm run build && npm version major && npm publish"
+    "releaseMajor": "npm run build && npm version major && npm publish",
+    "test": "mocha -r ts-node/register --timeout 0 'test/**/*.test.ts'"
   },
   "license": "ISC",
   "dependencies": {
@@ -37,8 +38,11 @@
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
-    "@types/node": "^22.0.2",
-    "rimraf": "^6.0.1"
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^22.5.0",
+    "mocha": "^10.7.3",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2"
   },
   "repository": {
     "type": "git",
