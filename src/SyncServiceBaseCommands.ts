@@ -9,23 +9,6 @@ export abstract class ParentCommand {
   abstract canCancelOut(newCommand: ParentCommand): boolean;
   commandId: string = generateUuid();
   commandCreationDate: Date = new Date();
-
-  public copy(): ParentCommand {
-    const clone: ParentCommand = Object.assign(
-      Object.create(Object.getPrototypeOf(this)),
-      this
-    );
-    clone.commandId = generateUuid();
-    clone.commandName = this.commandName;
-    clone.resourceType = this.resourceType;
-    clone.commandCreationDate = this.commandCreationDate;
-    if (this instanceof NewInfoCommand) {
-      (clone as any as NewInfoCommand).resourceInfo = JSON.parse(
-        JSON.stringify(this.resourceInfo)
-      );
-    }
-    return clone;
-  }
 }
 
 export abstract class GetInfoCommand extends ParentCommand {
