@@ -1,15 +1,27 @@
-import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
-import { ISyncResource } from "./interfaces/ISyncResource";
-import { mapToCommandFunc } from "./SyncTypes";
+import { ISyncResource } from "./ISyncResource";
+import { CommandNames } from "./CommandNames";
+import { CreateCommand, GetInfoCommand, NewInfoCommand, ParentCommand, ModifyCommand, ReadAllCommand, UpdateCommand } from "./SyncServiceBaseCommands";
+export type mapToCommandFunc = (commandName: CommandNames, resourceId: string, resourceInfo: ISyncResource) => ModifyCommand | null;
 type saveToStorageHook = (name: string, data: Record<string, any> | string) => Promise<void>;
 type saveToStorageHelperHook = (name: string, data: string) => Promise<void>;
-type loadFromStorageHook = (name: string) => Promise<Record<string, any>>;
+type loadFromStorageHook = (name: string) => Promise<StoredData | StoredState>;
+export type StoredData = {
+    [resourceType: string]: {
+        [resourceId: string]: ISyncResource;
+    };
+};
+export type StoredState = {
+    queue: QueueType;
+    errorQueue: QueueType;
+    syncDate: string | null;
+    deletedResourceIds: string[];
+};
 type loadFromStorageHelperHook = (name: string) => Promise<string | null>;
-type queueType = (IUpdateCommand | ICreateCommand | IDeleteCommand)[];
+type QueueType = ModifyCommand[];
 export declare class SyncData {
-    static queue: queueType;
-    static errorQueue: queueType;
-    static inProgressQueue: queueType;
+    static queue: QueueType;
+    static errorQueue: QueueType;
+    static inProgressQueue: QueueType;
     static maxConcurrentRequests: number;
     static minCommandAgeInSeconds: number;
     static secondsBetweenSyncs: number;
@@ -24,36 +36,43 @@ export declare class SyncData {
     static mapToCommand: mapToCommandFunc | null;
     static debug: boolean;
     static resourceListeners: Record<string, (resources: ISyncResource[]) => any>;
-    static deletedLocalIds: string[];
-    static updateLocalResources(cloudSyncDate: Date, initializationCommands?: IGetAllResourcesOfTypeCommand[]): Promise<void>;
+    static deletedResourceIds: string[];
+    static initializationCommands: ReadAllCommand[];
+    static getCloudSyncDate: () => Promise<Date>;
+    static initialized: boolean;
+    static updateLocalResources(cloudSyncDate: Date, initializationCommands?: ReadAllCommand[]): Promise<void>;
     /**
      * Attempts to merge the specified command with another command in the queue. If a cancel is successful, the original command will be removed.
      * @returns True if a command was canceled, false otherwise.
      */
-    static attemptCancel(command: ICommand): boolean;
+    static attemptCancel(command: ParentCommand): boolean;
     /**
      * Attempts to merge the specified command with another command in the queue. If a merge is successful, the original command will be removed.
      * @returns True if a command was merged, false otherwise.
      */
-    static attemptMerge(command: ICommand): boolean;
-    static simplifyCommandRecord(command: IUpdateCommand | ICreateCommand, existingResource: Record<string, any> | null): void;
-    static convertCreateToUpdate(command: ICreateCommand): IUpdateCommand;
+    static attemptMerge(command: ParentCommand): boolean;
+    static simplifyResourceInfo(newResourceInfo: ISyncResource, existingResourceInfo: ISyncResource | undefined): void;
+    static convertCreateToUpdate(command: CreateCommand): UpdateCommand;
     static shouldUpdateResource(localVersion: ISyncResource | undefined, cloudVersion: ISyncResource | undefined): {
         shouldUpdate: boolean;
         versionToUse: ISyncResource;
     };
-    static getRecordsToCompare(command: IReadCommand | IGetAllResourcesOfTypeCommand): Promise<{
+    static getRecordsToCompare(command: GetInfoCommand): Promise<{
         cloudRecords: ISyncResource[];
         localRecords: ISyncResource[];
     }>;
     /**
      * Merges two commands into a single command, or returns null if the commands cannot be merged.
      */
-    static getMergedCommand(command1: ICommand, command2: ICommand): ICommand | null;
+    static getMergedCommand(command1: NewInfoCommand, command2: NewInfoCommand): NewInfoCommand | null;
     /**
      * May be overridden to provide a custom implementation of the isOnline function.
      */
     static getIsOnline: () => Promise<boolean>;
+    /**
+     * Saves the resource data document to storage.
+     */
+    static saveData: (data: StoredData) => Promise<void>;
     /**
      * Saves data to storage
      */
@@ -67,7 +86,7 @@ export declare class SyncData {
      */
     static loadFromStorage: loadFromStorageHook;
     /**
-     * Must be overridden to provide a custom implementation of the saveToStorage function.
+     * Must be overridden to provide a custom implementation of the loadFromStorage function.
      */
     static loadFromStorageHelper: loadFromStorageHelperHook;
     /**
@@ -87,7 +106,7 @@ export declare class SyncData {
      * If the resource is not found, this function will do nothing.
      * @returns A promise that resolves when the delete operation has completed.
      */
-    static deleteResource(resourceType: string, localId: string): Promise<void>;
+    static deleteResource(resourceType: string, resourceId: string): Promise<void>;
     /**
      * Saves the current state of the queues and sync date.
      *
@@ -113,6 +132,6 @@ export declare class SyncData {
      * If the file does not exist, or the resource is not found, it will return null.
      * @returns The specified resource, or null if it is not found
      */
-    static getLocalResource(type: string, localId: string): Promise<Record<string, any> | null>;
+    static getLocalResource(type: string, resourceId: string): Promise<ISyncResource | undefined>;
 }
 export {};

@@ -1,38 +1,47 @@
-import { ICommand, ICreateCommand, IDeleteCommand, IGetAllResourcesOfTypeCommand, IReadCommand, IUpdateCommand } from "./interfaces/ICommand";
-import { CommandNames } from "./interfaces/CommandNames";
-declare abstract class ParentCommand implements ICommand {
+import { CommandNames } from "./CommandNames";
+import { ISyncResource } from "./ISyncResource";
+export declare abstract class ParentCommand {
+    abstract resourceType: string;
+    abstract commandName: CommandNames;
+    abstract canMerge(newCommand: ParentCommand): boolean;
+    abstract canCancelOut(newCommand: ParentCommand): boolean;
     commandId: string;
-    resourceType: string;
-    commandName: string;
-    localId: string;
-    commandRecord: Record<string, any> | undefined;
     commandCreationDate: Date;
-    constructor(resourceType: string, commandName: CommandNames, localId: string);
-    abstract canMerge(other: ICommand): boolean;
-    abstract canCancelOut(other: ICommand): boolean;
-    protected getFullUrl(baseUrl: string, endpoint: string): string;
-    protected getHeaders(response: Response): Record<string, string>;
-    copy(): ICommand;
 }
-export declare abstract class CreateCommand extends ParentCommand implements ICreateCommand {
-    commandRecord: Record<string, any>;
-    constructor(resourceType: string, commandName: CommandNames, localId: string, commandRecord: Record<string, any>);
-    abstract sync: ICreateCommand["sync"];
+export declare abstract class GetInfoCommand extends ParentCommand {
+    abstract resourceIds: string[];
+    abstract getCloudCopies(): Promise<ISyncResource[]>;
+    canCancelOut(newCommand: ParentCommand): boolean;
+    canMerge(newCommand: ParentCommand): boolean;
 }
-export declare abstract class ReadCommand extends ParentCommand implements IReadCommand {
-    abstract getCloudCopy: IReadCommand["getCloudCopy"];
+export declare abstract class ReadCommand extends GetInfoCommand {
+    commandName: CommandNames;
 }
-export declare abstract class UpdateCommand extends ParentCommand implements IUpdateCommand {
-    commandRecord: Record<string, any>;
-    constructor(resourceType: string, commandName: CommandNames, localId: string, commandRecord: Record<string, any>);
-    abstract sync: IUpdateCommand["sync"];
+export declare abstract class ReadAllCommand extends GetInfoCommand {
+    commandName: CommandNames;
 }
-export declare abstract class DeleteCommand extends ParentCommand implements IDeleteCommand {
-    constructor(resourceType: string, commandName: CommandNames, localId: string);
-    abstract sync: IDeleteCommand["sync"];
+export declare abstract class ModifyCommand extends ParentCommand {
+    get resourceId(): string;
+    abstract sync(): Promise<{
+        newSyncDate: Date | null;
+        newResourceInfo: ISyncResource | null;
+    }>;
 }
-export declare abstract class GetAllResourcesOfTypeCommand extends ParentCommand implements IGetAllResourcesOfTypeCommand {
-    constructor(resourceType: string);
-    abstract getCloudCopies: IGetAllResourcesOfTypeCommand["getCloudCopies"];
+export declare abstract class NewInfoCommand extends ModifyCommand {
+    abstract resourceInfo: ISyncResource;
+    canMerge(newCommand: ParentCommand): boolean;
 }
-export {};
+export declare abstract class CreateCommand extends NewInfoCommand {
+    commandName: CommandNames;
+    canCancelOut(newCommand: ParentCommand): boolean;
+}
+export declare abstract class UpdateCommand extends NewInfoCommand {
+    commandName: CommandNames;
+    canCancelOut(newCommand: ParentCommand): boolean;
+}
+export declare abstract class DeleteCommand extends ParentCommand {
+    abstract resourceId: string;
+    commandName: CommandNames;
+    canCancelOut(newCommand: ParentCommand): boolean;
+    canMerge(newCommand: ParentCommand): boolean;
+}

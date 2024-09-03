@@ -1,8 +1,8 @@
-import { ICommand, IGetAllResourcesOfTypeCommand, IReadCommand } from "./interfaces/ICommand";
-import { ISyncResource } from "./interfaces/ISyncResource";
-import { mapToCommandFunc } from "./SyncTypes";
+import { ISyncResource } from "./ISyncResource";
+import { mapToCommandFunc } from "./SyncData";
+import { GetInfoCommand, ModifyCommand, ReadAllCommand } from "./SyncServiceBaseCommands";
 export declare class SyncService {
-    static syncInterval: NodeJS.Timeout | null;
+    private static syncInterval;
     static getConfig(): {
         maxConcurrentRequests: number;
         minCommandAgeInSeconds: number;
@@ -11,8 +11,6 @@ export declare class SyncService {
         encrypt: boolean;
     };
     static get config(): {
-        setSaveToStorage: (func: (name: string, data: string) => Promise<void>) => void;
-        setLoadFromStorage: (func: (name: string) => Promise<string | null>) => void;
         enableEncryption: (encryptionKey: string) => void;
         disableEncryption: () => void;
         setOnlineChecker: (func: () => Promise<boolean>) => void;
@@ -30,7 +28,7 @@ export declare class SyncService {
      * If the cloud version is not found, the local version will be returned.
      * @returns The specified resources
      */
-    static read(command: IReadCommand | IGetAllResourcesOfTypeCommand): Promise<Record<string, any>[]>;
+    static read(command: GetInfoCommand): Promise<Record<string, any>[]>;
     /**
      * If the command is a read operation, it will be executed immediately and the result will be returned.
      *
@@ -39,13 +37,15 @@ export declare class SyncService {
      * For read operations, you can also use SyncService.read(command) to execute the command immediately.
      * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
      */
-    static addCommand(newCommand: ICommand): Promise<null | Record<string, any>>;
+    static addCommand(newCommand: ModifyCommand | GetInfoCommand): Promise<null | Record<string, any>>;
+    static initialize(getCloudSyncDate: () => Promise<Date>, mapToCommand: mapToCommandFunc, saveToStorage: (name: string, data: string) => Promise<any>, loadFromStorage: (name: string) => Promise<string | null>, initializationCommands: ReadAllCommand[]): Promise<void>;
+    static get initialized(): boolean;
     /**
      * Starts the sync process.
      * This method will load the queues from the local JSON file, and then start the sync interval.
      * If the sync interval is already running, this method will do nothing.
      */
-    static startSync(getCloudSyncDateHook: () => Promise<Date>, mapToCommand: mapToCommandFunc, initializationCommands?: IGetAllResourcesOfTypeCommand[]): Promise<void>;
+    static startSync(): Promise<void>;
     /**
      * Executes the sync process every interval.
      * This method will check the current state of the queues and execute any commands that are eligible.
@@ -53,5 +53,6 @@ export declare class SyncService {
      * If there are no commands to execute, or the maximum number of concurrent requests has been reached, this method will do nothing.
      * If a command fails, it will be added to the error queue.
      */
-    static sync(): Promise<void>;
+    private static sync;
+    static stopSync(): Promise<void>;
 }

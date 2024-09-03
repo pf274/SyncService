@@ -1,8 +1,8 @@
-import { CommandNames } from "./src/interfaces/CommandNames";
+import { CommandNames } from "./src/CommandNames";
 import { SyncService } from "./src/SyncService";
-import { CreateCommand, DeleteCommand, GetAllResourcesOfTypeCommand, ReadCommand, UpdateCommand } from "./src/SyncServiceBaseCommands";
-import { ICommand } from "./src/interfaces/ICommand";
-export { SyncService, CommandNames, ICommand, CreateCommand, ReadCommand, UpdateCommand, DeleteCommand, GetAllResourcesOfTypeCommand, };
+import { CreateCommand, DeleteCommand, ReadAllCommand, ReadCommand, UpdateCommand } from "./src/SyncServiceBaseCommands";
+import { ISyncResource } from "./src/ISyncResource";
+export { SyncService, CommandNames, CreateCommand, ReadCommand, UpdateCommand, DeleteCommand, ReadAllCommand, ISyncResource, };
 declare const _default: {
     SyncService: typeof SyncService;
     Commands: {
@@ -10,7 +10,8 @@ declare const _default: {
         ReadCommand: typeof ReadCommand;
         UpdateCommand: typeof UpdateCommand;
         DeleteCommand: typeof DeleteCommand;
-        GetAllResourcesOfTypeCommand: typeof GetAllResourcesOfTypeCommand;
+        ReadAllCommand: typeof ReadAllCommand;
     };
+    CommandNames: typeof CommandNames;
 };
 export default _default;

@@ -1,67 +1,93 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GetAllResourcesOfTypeCommand = exports.DeleteCommand = exports.UpdateCommand = exports.ReadCommand = exports.CreateCommand = void 0;
+exports.DeleteCommand = exports.UpdateCommand = exports.CreateCommand = exports.NewInfoCommand = exports.ModifyCommand = exports.ReadAllCommand = exports.ReadCommand = exports.GetInfoCommand = exports.ParentCommand = void 0;
 const uuid_1 = require("./uuid");
-const CommandNames_1 = require("./interfaces/CommandNames");
+const CommandNames_1 = require("./CommandNames");
 class ParentCommand {
-    constructor(resourceType, commandName, localId) {
-        this.commandRecord = undefined;
-        this.resourceType = resourceType;
-        this.commandName = commandName;
-        this.localId = localId;
+    constructor() {
         this.commandId = (0, uuid_1.generateUuid)();
         this.commandCreationDate = new Date();
     }
-    getFullUrl(baseUrl, endpoint) {
-        return new URL(endpoint, baseUrl).toString();
+}
+exports.ParentCommand = ParentCommand;
+class GetInfoCommand extends ParentCommand {
+    canCancelOut(newCommand) {
+        return false;
     }
-    getHeaders(response) {
-        const headers = response.headers;
-        const headersObject = {};
-        headers.forEach((value, key) => {
-            headersObject[key] = value;
-        });
-        return headersObject;
-    }
-    copy() {
-        const clone = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
-        clone.commandId = (0, uuid_1.generateUuid)();
-        clone.commandName = this.commandName;
-        clone.resourceType = this.resourceType;
-        clone.localId = this.localId;
-        clone.commandCreationDate = this.commandCreationDate;
-        if (this instanceof UpdateCommand || this instanceof CreateCommand) {
-            clone.commandRecord = JSON.parse(JSON.stringify(this.commandRecord));
-        }
-        return clone;
+    canMerge(newCommand) {
+        return false;
     }
 }
-class CreateCommand extends ParentCommand {
-    constructor(resourceType, commandName, localId, commandRecord) {
-        super(resourceType, commandName, localId);
-        this.commandRecord = commandRecord;
+exports.GetInfoCommand = GetInfoCommand;
+class ReadCommand extends GetInfoCommand {
+    constructor() {
+        super(...arguments);
+        this.commandName = CommandNames_1.CommandNames.Read;
+    }
+}
+exports.ReadCommand = ReadCommand;
+class ReadAllCommand extends GetInfoCommand {
+    constructor() {
+        super(...arguments);
+        this.commandName = CommandNames_1.CommandNames.ReadAll;
+    }
+}
+exports.ReadAllCommand = ReadAllCommand;
+class ModifyCommand extends ParentCommand {
+    get resourceId() {
+        return (this.resourceInfo.resourceId ||
+            this.resourceId);
+    }
+}
+exports.ModifyCommand = ModifyCommand;
+class NewInfoCommand extends ModifyCommand {
+    canMerge(newCommand) {
+        if (newCommand instanceof NewInfoCommand) {
+            if (newCommand.resourceInfo.resourceId === this.resourceInfo.resourceId) {
+                if (newCommand instanceof UpdateCommand) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
+exports.NewInfoCommand = NewInfoCommand;
+class CreateCommand extends NewInfoCommand {
+    constructor() {
+        super(...arguments);
+        this.commandName = CommandNames_1.CommandNames.Create;
+    }
+    canCancelOut(newCommand) {
+        if (newCommand instanceof DeleteCommand) {
+            if (newCommand.resourceId === this.resourceInfo.resourceId) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 exports.CreateCommand = CreateCommand;
-class ReadCommand extends ParentCommand {
-}
-exports.ReadCommand = ReadCommand;
-class UpdateCommand extends ParentCommand {
-    constructor(resourceType, commandName, localId, commandRecord) {
-        super(resourceType, commandName, localId);
-        this.commandRecord = commandRecord;
+class UpdateCommand extends NewInfoCommand {
+    constructor() {
+        super(...arguments);
+        this.commandName = CommandNames_1.CommandNames.Update;
+    }
+    canCancelOut(newCommand) {
+        return false;
     }
 }
 exports.UpdateCommand = UpdateCommand;
 class DeleteCommand extends ParentCommand {
-    constructor(resourceType, commandName, localId) {
-        super(resourceType, commandName, localId);
+    constructor() {
+        super(...arguments);
+        this.commandName = CommandNames_1.CommandNames.Delete;
+    }
+    canCancelOut(newCommand) {
+        return false;
+    }
+    canMerge(newCommand) {
+        return false;
     }
 }
 exports.DeleteCommand = DeleteCommand;
-class GetAllResourcesOfTypeCommand extends ParentCommand {
-    constructor(resourceType) {
-        super(resourceType, CommandNames_1.CommandNames.ReadAll, (0, uuid_1.generateUuid)());
-    }
-}
-exports.GetAllResourcesOfTypeCommand = GetAllResourcesOfTypeCommand;
