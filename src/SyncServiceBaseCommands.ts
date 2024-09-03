@@ -1,103 +1,87 @@
-import {
-  ICommand,
-  ICreateCommand,
-  IDeleteCommand,
-  IGetAllResourcesOfTypeCommand,
-  IReadCommand,
-  IUpdateCommand,
-} from "./interfaces/ICommand";
 import { generateUuid } from "./uuid";
-import { CommandNames } from "./interfaces/CommandNames";
+import { CommandNames } from "./CommandNames";
+import { ISyncResource } from "./ISyncResource";
 
-abstract class ParentCommand implements ICommand {
-  commandId: string;
-  resourceType: string;
-  commandName: string;
-  localId: string;
-  commandRecord: Record<string, any> | undefined = undefined;
-  commandCreationDate: Date;
-  constructor(resourceType: string, commandName: CommandNames, localId: string) {
-    this.resourceType = resourceType;
-    this.commandName = commandName;
-    this.localId = localId;
-    this.commandId = generateUuid();
-    this.commandCreationDate = new Date();
-  }
-  abstract canMerge(other: ICommand): boolean;
-  abstract canCancelOut(other: ICommand): boolean;
-  protected getFullUrl(baseUrl: string, endpoint: string) {
-    return new URL(endpoint, baseUrl).toString();
-  }
-  protected getHeaders(response: Response) {
-    const headers = response.headers;
-    const headersObject: Record<string, string> = {};
-    headers.forEach((value, key) => {
-      headersObject[key] = value;
-    });
-    return headersObject;
-  }
+export abstract class ParentCommand {
+  abstract resourceType: string;
+  abstract commandName: CommandNames;
+  abstract canMerge(newCommand: ParentCommand): boolean;
+  abstract canCancelOut(newCommand: ParentCommand): boolean;
+  commandId: string = generateUuid();
+  commandCreationDate: Date = new Date();
+}
 
-  public copy(): ICommand {
-    const clone: ICommand = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
-    clone.commandId = generateUuid();
-    clone.commandName = this.commandName;
-    clone.resourceType = this.resourceType;
-    clone.localId = this.localId;
-    clone.commandCreationDate = this.commandCreationDate;
-    if (this instanceof UpdateCommand || this instanceof CreateCommand) {
-      (clone as UpdateCommand | CreateCommand).commandRecord = JSON.parse(
-        JSON.stringify(this.commandRecord)
-      );
+export abstract class GetInfoCommand extends ParentCommand {
+  abstract resourceIds: string[];
+  abstract getCloudCopies(): Promise<ISyncResource[]>;
+  canCancelOut(newCommand: ParentCommand): boolean {
+    return false;
+  }
+  canMerge(newCommand: ParentCommand): boolean {
+    return false;
+  }
+}
+
+export abstract class ReadCommand extends GetInfoCommand {
+  commandName = CommandNames.Read;
+}
+
+export abstract class ReadAllCommand extends GetInfoCommand {
+  commandName = CommandNames.ReadAll;
+}
+
+export abstract class ModifyCommand extends ParentCommand {
+  get resourceId(): string {
+    return (
+      (this as any as NewInfoCommand).resourceInfo.resourceId ||
+      (this as any as DeleteCommand).resourceId
+    );
+  }
+  abstract sync(): Promise<{
+    newSyncDate: Date | null;
+    newResourceInfo: ISyncResource | null;
+  }>;
+}
+
+export abstract class NewInfoCommand extends ModifyCommand {
+  abstract resourceInfo: ISyncResource;
+  canMerge(newCommand: ParentCommand): boolean {
+    if (newCommand instanceof NewInfoCommand) {
+      if (newCommand.resourceInfo.resourceId === this.resourceInfo.resourceId) {
+        if (newCommand instanceof UpdateCommand) {
+          return true;
+        }
+      }
     }
-    return clone;
+    return false;
+  }
+}
+export abstract class CreateCommand extends NewInfoCommand {
+  commandName = CommandNames.Create;
+  canCancelOut(newCommand: ParentCommand): boolean {
+    if (newCommand instanceof DeleteCommand) {
+      if (newCommand.resourceId === this.resourceInfo.resourceId) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 
-export abstract class CreateCommand extends ParentCommand implements ICreateCommand {
-  commandRecord: Record<string, any>;
-  constructor(
-    resourceType: string,
-    commandName: CommandNames,
-    localId: string,
-    commandRecord: Record<string, any>
-  ) {
-    super(resourceType, commandName, localId);
-    this.commandRecord = commandRecord;
+export abstract class UpdateCommand extends NewInfoCommand {
+  commandName = CommandNames.Update;
+  canCancelOut(newCommand: ParentCommand): boolean {
+    return false;
   }
-  abstract sync: ICreateCommand["sync"];
 }
 
-export abstract class ReadCommand extends ParentCommand implements IReadCommand {
-  abstract getCloudCopy: IReadCommand["getCloudCopy"];
-}
-
-export abstract class UpdateCommand extends ParentCommand implements IUpdateCommand {
-  commandRecord: Record<string, any>;
-  constructor(
-    resourceType: string,
-    commandName: CommandNames,
-    localId: string,
-    commandRecord: Record<string, any>
-  ) {
-    super(resourceType, commandName, localId);
-    this.commandRecord = commandRecord;
+export abstract class DeleteCommand extends ParentCommand {
+  abstract resourceId: string;
+  commandName = CommandNames.Delete;
+  canCancelOut(newCommand: ParentCommand): boolean {
+    return false;
   }
-  abstract sync: IUpdateCommand["sync"];
-}
-
-export abstract class DeleteCommand extends ParentCommand implements IDeleteCommand {
-  constructor(resourceType: string, commandName: CommandNames, localId: string) {
-    super(resourceType, commandName, localId);
+  canMerge(newCommand: ParentCommand): boolean {
+    return false;
   }
-  abstract sync: IDeleteCommand["sync"];
-}
-
-export abstract class GetAllResourcesOfTypeCommand
-  extends ParentCommand
-  implements IGetAllResourcesOfTypeCommand
-{
-  constructor(resourceType: string) {
-    super(resourceType, CommandNames.ReadAll, generateUuid());
-  }
-  abstract getCloudCopies: IGetAllResourcesOfTypeCommand["getCloudCopies"];
 }
