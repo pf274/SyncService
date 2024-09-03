@@ -72,28 +72,16 @@ export class SyncService {
    * @returns The specified resources
    */
   static async read(command: GetInfoCommand): Promise<Record<string, any>[]> {
-    const { cloudRecords, localRecords } = await SyncData.getRecordsToCompare(
-      command
-    );
+    const { cloudRecords, localRecords } = await SyncData.getRecordsToCompare(command);
     const resourceIdsToProcess = [
-      ...new Set(
-        [...cloudRecords, ...localRecords].map((record) => record.resourceId)
-      ),
+      ...new Set([...cloudRecords, ...localRecords].map((record) => record.resourceId)),
     ];
     const recordsToReturn: Record<string, any>[] = [];
     const recordsToUpdate: ISyncResource[] = [];
     for (const resourceId of resourceIdsToProcess) {
-      const cloudVersion = cloudRecords.find(
-        (record) => record.resourceId === resourceId
-      );
-      const localVersion = localRecords.find(
-        (record) => record.resourceId === resourceId
-      );
-      if (
-        !localVersion &&
-        cloudVersion &&
-        SyncData.deletedResourceIds.includes(resourceId)
-      ) {
+      const cloudVersion = cloudRecords.find((record) => record.resourceId === resourceId);
+      const localVersion = localRecords.find((record) => record.resourceId === resourceId);
+      if (!localVersion && cloudVersion && SyncData.deletedResourceIds.includes(resourceId)) {
         continue; // skip deleted resources
       }
       const { shouldUpdate, versionToUse } = SyncData.shouldUpdateResource(
@@ -183,6 +171,7 @@ export class SyncService {
    * If the sync interval is already running, this method will do nothing.
    */
   static async startSync(): Promise<void> {
+    console.log("testing from startSync");
     if (!SyncData.initialized) {
       throw new Error("Sync Service not initialized.");
     }
@@ -198,16 +187,11 @@ export class SyncService {
     try {
       await SyncData.loadState();
       const cloudSyncDate = await SyncData.getCloudSyncDate();
-      await SyncData.updateLocalResources(
-        cloudSyncDate,
-        SyncData.initializationCommands
-      );
+      await SyncData.updateLocalResources(cloudSyncDate, SyncData.initializationCommands);
       if (SyncData.debug) {
         console.log("Notifying resource listeners of initial data...");
       }
-      const data = (await SyncData.loadFromStorage(
-        `${SyncData.storagePrefix}-data`
-      )) as StoredData;
+      const data = (await SyncData.loadFromStorage(`${SyncData.storagePrefix}-data`)) as StoredData;
       for (const resourceType of Object.keys(SyncData.resourceListeners)) {
         if (data[resourceType]) {
           const callbackFunction = SyncData.resourceListeners[resourceType];
@@ -227,8 +211,7 @@ export class SyncService {
         }
       }
       SyncData.queue.sort(
-        (a, b) =>
-          a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
+        (a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
       );
       await SyncData.saveState();
       this.syncInterval = setInterval(() => {
@@ -260,8 +243,7 @@ export class SyncService {
           console.log(`Device is ${SyncData.online ? "on" : "off"}line`);
         }
       }
-      const remainingCommands =
-        SyncData.queue.length - SyncData.inProgressQueue.length;
+      const remainingCommands = SyncData.queue.length - SyncData.inProgressQueue.length;
       const availableSlots = Math.max(
         SyncData.maxConcurrentRequests - SyncData.inProgressQueue.length,
         0
@@ -275,12 +257,8 @@ export class SyncService {
         return;
       }
       // check if there are any commands to execute
-      const commandIdsInProgress = SyncData.inProgressQueue.map(
-        (command) => command.commandId
-      );
-      const resourceIdsInProgress = SyncData.inProgressQueue.map(
-        (command) => command.resourceId
-      );
+      const commandIdsInProgress = SyncData.inProgressQueue.map((command) => command.commandId);
+      const resourceIdsInProgress = SyncData.inProgressQueue.map((command) => command.resourceId);
       function notAlreadyInProgress(command: ModifyCommand) {
         return (
           !commandIdsInProgress.includes(command.commandId) &&
@@ -293,18 +271,12 @@ export class SyncService {
           new Date().getTime() - SyncData.minCommandAgeInSeconds * 1000
         );
       }
-      const commandsEligible = SyncData.queue
-        .filter(notAlreadyInProgress)
-        .filter(isOldEnough);
-      const commandsToRun =
-        availableSlots == 0 ? [] : commandsEligible.slice(0, availableSlots);
+      const commandsEligible = SyncData.queue.filter(notAlreadyInProgress).filter(isOldEnough);
+      const commandsToRun = availableSlots == 0 ? [] : commandsEligible.slice(0, availableSlots);
       for (const command of commandsToRun) {
         SyncData.inProgressQueue.push(command);
         if (SyncData.debug) {
-          console.log(
-            `Executing command: ${command.commandName} ${command.resourceType}`,
-            command
-          );
+          console.log(`Executing command: ${command.commandName} ${command.resourceType}`, command);
         }
         new Promise(async (resolve) => {
           try {
@@ -315,8 +287,7 @@ export class SyncService {
               (queuedCommand) => queuedCommand.commandId !== command.commandId
             );
             SyncData.inProgressQueue = SyncData.inProgressQueue.filter(
-              (inProgressCommand) =>
-                inProgressCommand.commandId !== command.commandId
+              (inProgressCommand) => inProgressCommand.commandId !== command.commandId
             );
             if (command instanceof DeleteCommand) {
               SyncData.deletedResourceIds = SyncData.deletedResourceIds.filter(
@@ -334,15 +305,10 @@ export class SyncService {
                 if (SyncData.debug) {
                   console.log("Deleting resource from API response:", command);
                 }
-                await SyncData.deleteResource(
-                  command.resourceType,
-                  command.resourceId
-                );
+                await SyncData.deleteResource(command.resourceType, command.resourceId);
               } else if (command instanceof NewInfoCommand) {
                 if (!newResourceInfo) {
-                  throw new Error(
-                    "Create/Update command did not return a new resource."
-                  );
+                  throw new Error("Create/Update command did not return a new resource.");
                 }
                 if (SyncData.debug) {
                   console.log("Saving resource from API response:", command);
