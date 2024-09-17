@@ -163,7 +163,6 @@ class SyncService {
      */
     static startSync() {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("testing from startSync");
             if (!SyncData_1.SyncData.initialized) {
                 throw new Error("Sync Service not initialized.");
             }

@@ -2,7 +2,8 @@ import { CommandNames } from "./src/CommandNames";
 import { SyncService } from "./src/SyncService";
 import { CreateCommand, DeleteCommand, ReadAllCommand, ReadCommand, UpdateCommand } from "./src/SyncServiceBaseCommands";
 import { ISyncResource } from "./src/ISyncResource";
-export { SyncService, CommandNames, CreateCommand, ReadCommand, UpdateCommand, DeleteCommand, ReadAllCommand, ISyncResource, };
+export type { ISyncResource };
+export { SyncService, CommandNames, CreateCommand, ReadCommand, UpdateCommand, DeleteCommand, ReadAllCommand, };
 declare const _default: {
     SyncService: typeof SyncService;
     Commands: {
