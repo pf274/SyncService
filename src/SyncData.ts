@@ -480,6 +480,9 @@ export class SyncData {
         if (savedCommand.commandCreationDate) {
           commandInstance.commandCreationDate = new Date(savedCommand.commandCreationDate);
         }
+        if ((savedCommand as any).disableMerge) {
+          (commandInstance as any).disableMerge = (savedCommand as any).disableMerge;
+        }
         queueArray.push(commandInstance);
       }
     }

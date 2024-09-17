@@ -308,6 +308,9 @@ class SyncData {
                     if (savedCommand.commandCreationDate) {
                         commandInstance.commandCreationDate = new Date(savedCommand.commandCreationDate);
                     }
+                    if (savedCommand.disableMerge) {
+                        commandInstance.disableMerge = savedCommand.disableMerge;
+                    }
                     queueArray.push(commandInstance);
                 }
             }
