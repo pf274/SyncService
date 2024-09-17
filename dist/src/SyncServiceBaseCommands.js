@@ -41,6 +41,10 @@ class ModifyCommand extends ParentCommand {
 }
 exports.ModifyCommand = ModifyCommand;
 class NewInfoCommand extends ModifyCommand {
+    constructor() {
+        super(...arguments);
+        this.disableMerge = false;
+    }
     canMerge(newCommand) {
         if (newCommand instanceof NewInfoCommand) {
             if (newCommand.resourceInfo.resourceId === this.resourceInfo.resourceId) {

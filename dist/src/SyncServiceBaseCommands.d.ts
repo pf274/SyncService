@@ -30,6 +30,7 @@ export declare abstract class ModifyCommand extends ParentCommand {
 export declare abstract class NewInfoCommand extends ModifyCommand {
     abstract resourceInfo: ISyncResource;
     canMerge(newCommand: ParentCommand): boolean;
+    disableMerge: boolean;
 }
 export declare abstract class CreateCommand extends NewInfoCommand {
     commandName: CommandNames;

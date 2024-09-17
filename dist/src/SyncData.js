@@ -76,7 +76,7 @@ class SyncData {
      * @returns True if a command was merged, false otherwise.
      */
     static attemptMerge(command) {
-        const mergeableCommand = _a.queue.find((otherCommand) => otherCommand.canMerge(command));
+        const mergeableCommand = _a.queue.find((otherCommand) => otherCommand.canMerge(command) && (otherCommand === null || otherCommand === void 0 ? void 0 : otherCommand.disableMerge) !== true);
         if (mergeableCommand) {
             if (_a.debug) {
                 console.log("Merging commands...");

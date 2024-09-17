@@ -102,8 +102,8 @@ class SyncService {
      * For read operations, you can also use SyncService.read(command) to execute the command immediately.
      * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
      */
-    static addCommand(newCommand) {
-        return __awaiter(this, void 0, void 0, function* () {
+    static addCommand(newCommand_1) {
+        return __awaiter(this, arguments, void 0, function* (newCommand, saveOnlyOnSuccess = false) {
             if (newCommand instanceof SyncServiceBaseCommands_1.GetInfoCommand) {
                 return SyncService.read(newCommand);
             }
@@ -122,7 +122,12 @@ class SyncService {
                     }
                     return null;
                 }
-                yield SyncData_1.SyncData.saveResources([command.resourceInfo], false);
+                if (!saveOnlyOnSuccess) {
+                    yield SyncData_1.SyncData.saveResources([command.resourceInfo], false);
+                }
+                else {
+                    command.disableMerge = true;
+                }
             }
             else if (command instanceof SyncServiceBaseCommands_1.DeleteCommand) {
                 yield SyncData_1.SyncData.deleteResource(command.resourceType, command.resourceId);

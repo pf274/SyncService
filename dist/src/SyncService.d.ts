@@ -37,7 +37,7 @@ export declare class SyncService {
      * For read operations, you can also use SyncService.read(command) to execute the command immediately.
      * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
      */
-    static addCommand(newCommand: ModifyCommand | GetInfoCommand): Promise<null | Record<string, any>>;
+    static addCommand(newCommand: ModifyCommand | GetInfoCommand, saveOnlyOnSuccess?: boolean): Promise<null | Record<string, any>>;
     static initialize(getCloudSyncDate: () => Promise<Date>, mapToCommand: mapToCommandFunc, saveToStorage: (name: string, data: string) => Promise<any>, loadFromStorage: (name: string) => Promise<string | null>, initializationCommands: ReadAllCommand[]): Promise<void>;
     static get initialized(): boolean;
     /**
