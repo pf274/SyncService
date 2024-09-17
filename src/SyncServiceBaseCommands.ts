@@ -55,6 +55,7 @@ export abstract class NewInfoCommand extends ModifyCommand {
     }
     return false;
   }
+  disableMerge = false;
 }
 export abstract class CreateCommand extends NewInfoCommand {
   commandName = CommandNames.Create;

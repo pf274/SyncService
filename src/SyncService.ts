@@ -107,7 +107,8 @@ export class SyncService {
    * @returns A promise that resolves with the result of the command if the command is a read operation, or null if the command is a write operation.
    */
   static async addCommand(
-    newCommand: ModifyCommand | GetInfoCommand
+    newCommand: ModifyCommand | GetInfoCommand,
+    saveOnlyOnSuccess = false
   ): Promise<null | Record<string, any>> {
     if (newCommand instanceof GetInfoCommand) {
       return SyncService.read(newCommand);
@@ -130,7 +131,11 @@ export class SyncService {
         }
         return null;
       }
-      await SyncData.saveResources([command.resourceInfo], false);
+      if (!saveOnlyOnSuccess) {
+        await SyncData.saveResources([command.resourceInfo], false);
+      } else {
+        command.disableMerge = true;
+      }
     } else if (command instanceof DeleteCommand) {
       await SyncData.deleteResource(command.resourceType, command.resourceId);
       SyncData.deletedResourceIds.push(command.resourceId);
