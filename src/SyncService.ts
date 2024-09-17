@@ -171,7 +171,6 @@ export class SyncService {
    * If the sync interval is already running, this method will do nothing.
    */
   static async startSync(): Promise<void> {
-    console.log("testing from startSync");
     if (!SyncData.initialized) {
       throw new Error("Sync Service not initialized.");
     }

@@ -10,6 +10,8 @@ import {
 
 import { ISyncResource } from "./src/ISyncResource";
 
+export type { ISyncResource };
+
 export {
   SyncService,
   CommandNames,
@@ -18,7 +20,6 @@ export {
   UpdateCommand,
   DeleteCommand,
   ReadAllCommand,
-  ISyncResource,
 };
 
 const Commands = {
