@@ -128,9 +128,7 @@ class SyncData {
         else if (localVersion && !cloudVersion) {
             return { shouldUpdate: false, versionToUse: localVersion };
         }
-        else if (localVersion &&
-            cloudVersion &&
-            cloudVersion.updatedAt > localVersion.updatedAt) {
+        else if (localVersion && cloudVersion && cloudVersion.updatedAt > localVersion.updatedAt) {
             return { shouldUpdate: true, versionToUse: cloudVersion };
         }
         else {
@@ -194,9 +192,7 @@ class SyncData {
             if (newResources.length == 0) {
                 return;
             }
-            const resourceTypes = [
-                ...new Set(newResources.map((resource) => resource.resourceType)),
-            ];
+            const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
             if (_a.debug) {
                 console.log(`Saving ${synced ? "synced " : ""}resources of type${resourceTypes.length > 1 ? "s" : ""} ${resourceTypes.join(", ")}`);
             }
@@ -295,9 +291,9 @@ class SyncData {
             const queues = { queue: _a.queue, errorQueue: _a.errorQueue };
             for (const [queueName, queueArray] of Object.entries(queues)) {
                 for (const savedCommand of queueName == "queue"
-                    ? data.queue
+                    ? (data === null || data === void 0 ? void 0 : data.queue) || []
                     : queueName == "errorQueue"
-                        ? data.errorQueue
+                        ? (data === null || data === void 0 ? void 0 : data.errorQueue) || []
                         : []) {
                     const commandInstance = _a.mapToCommand(savedCommand.commandName, savedCommand.resourceId, savedCommand === null || savedCommand === void 0 ? void 0 : savedCommand.resourceInfo);
                     if (!commandInstance) {
@@ -407,9 +403,7 @@ SyncData.loadFromStorage = (name) => __awaiter(void 0, void 0, void 0, function*
     if (!data) {
         return {};
     }
-    if (_a.encrypt &&
-        _a.encryptionKey &&
-        typeof data === "string") {
+    if (_a.encrypt && _a.encryptionKey && typeof data === "string") {
         data = crypto_js_1.default.AES.decrypt(data, _a.encryptionKey).toString(crypto_js_1.default.enc.Utf8);
     }
     let returnVal = JSON.parse(data);
