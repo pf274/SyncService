@@ -18,10 +18,7 @@ export type mapToCommandFunc = (
   resourceInfo: ISyncResource
 ) => ModifyCommand | null;
 
-type saveToStorageHook = (
-  name: string,
-  data: Record<string, any> | string
-) => Promise<void>;
+type saveToStorageHook = (name: string, data: Record<string, any> | string) => Promise<void>;
 type saveToStorageHelperHook = (name: string, data: string) => Promise<void>;
 type loadFromStorageHook = (name: string) => Promise<StoredData | StoredState>;
 export type StoredData = {
@@ -55,10 +52,7 @@ export class SyncData {
   static encrypt: boolean = false;
   static mapToCommand: mapToCommandFunc | null = null;
   static debug: boolean = false;
-  static resourceListeners: Record<
-    string,
-    (resources: ISyncResource[]) => any
-  > = {};
+  static resourceListeners: Record<string, (resources: ISyncResource[]) => any> = {};
   static deletedResourceIds: string[] = [];
   static initializationCommands: ReadAllCommand[];
   static getCloudSyncDate: () => Promise<Date> = async () => {
@@ -73,16 +67,13 @@ export class SyncData {
     if (SyncData.debug) {
       console.log("Updating local resources...");
     }
-    const localResourcesOutOfDate =
-      SyncData.syncDate == null || SyncData.syncDate < cloudSyncDate;
+    const localResourcesOutOfDate = SyncData.syncDate == null || SyncData.syncDate < cloudSyncDate;
     if (!localResourcesOutOfDate) {
       return;
     }
     if (!initializationCommands) {
       if (SyncData.debug) {
-        console.log(
-          "Local resources are out of date. No initialization commands provided."
-        );
+        console.log("Local resources are out of date. No initialization commands provided.");
       }
       SyncData.syncDate = cloudSyncDate;
       return;
@@ -142,9 +133,7 @@ export class SyncData {
    * @returns True if a command was merged, false otherwise.
    */
   static attemptMerge(command: ParentCommand): boolean {
-    const mergeableCommand = SyncData.queue.find((otherCommand) =>
-      otherCommand.canMerge(command)
-    );
+    const mergeableCommand = SyncData.queue.find((otherCommand) => otherCommand.canMerge(command));
     if (mergeableCommand) {
       if (SyncData.debug) {
         console.log("Merging commands...");
@@ -155,18 +144,14 @@ export class SyncData {
       );
       if (mergedCommand) {
         if (SyncData.debug) {
-          console.log(
-            `Merged command: ${JSON.stringify(mergedCommand, null, 2)}`
-          );
+          console.log(`Merged command: ${JSON.stringify(mergedCommand, null, 2)}`);
         }
         SyncData.queue = SyncData.queue.filter(
-          (otherCommand) =>
-            otherCommand.commandId !== mergeableCommand.commandId
+          (otherCommand) => otherCommand.commandId !== mergeableCommand.commandId
         );
         SyncData.queue.push(mergedCommand as ModifyCommand);
         SyncData.queue.sort(
-          (a, b) =>
-            a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
+          (a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
         );
         if (SyncData.debug) {
           console.log(
@@ -228,11 +213,7 @@ export class SyncData {
       return { shouldUpdate: true, versionToUse: cloudVersion };
     } else if (localVersion && !cloudVersion) {
       return { shouldUpdate: false, versionToUse: localVersion };
-    } else if (
-      localVersion &&
-      cloudVersion &&
-      cloudVersion.updatedAt > localVersion.updatedAt
-    ) {
+    } else if (localVersion && cloudVersion && cloudVersion.updatedAt > localVersion.updatedAt) {
       return { shouldUpdate: true, versionToUse: cloudVersion };
     } else {
       return { shouldUpdate: false, versionToUse: localVersion! };
@@ -244,16 +225,14 @@ export class SyncData {
       `${SyncData.storagePrefix}-data`
     )) as StoredData;
     const cloudRecords: ISyncResource[] = await command.getCloudCopies();
-    const localRecords: ISyncResource[] = Object.keys(
-      localData[command.resourceType] || {}
-    ).map((resourceId) => ({
-      resourceId,
-      resourceType: command.resourceType,
-      data: localData[command.resourceType][resourceId],
-      updatedAt: new Date(
-        localData[command.resourceType][resourceId].updatedAt
-      ),
-    }));
+    const localRecords: ISyncResource[] = Object.keys(localData[command.resourceType] || {}).map(
+      (resourceId) => ({
+        resourceId,
+        resourceType: command.resourceType,
+        data: localData[command.resourceType][resourceId],
+        updatedAt: new Date(localData[command.resourceType][resourceId].updatedAt),
+      })
+    );
     return { cloudRecords, localRecords };
   }
 
@@ -265,8 +244,7 @@ export class SyncData {
     command2: NewInfoCommand
   ): NewInfoCommand | null {
     const commands = [command1, command2].sort(
-      (a, b) =>
-        a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
+      (a, b) => a.commandCreationDate.getTime() - b.commandCreationDate.getTime()
     );
     const resourceDeleted = commands[1] instanceof DeleteCommand;
     if (resourceDeleted) {
@@ -328,10 +306,7 @@ export class SyncData {
   ) => {
     let dataString = typeof data == "string" ? data : JSON.stringify(data);
     if (SyncData.encrypt && SyncData.encryptionKey) {
-      dataString = CryptoJS.AES.encrypt(
-        dataString,
-        SyncData.encryptionKey
-      ).toString();
+      dataString = CryptoJS.AES.encrypt(dataString, SyncData.encryptionKey).toString();
     }
     await SyncData.saveToStorageHelper(name, dataString);
   };
@@ -349,14 +324,8 @@ export class SyncData {
     if (!data) {
       return {};
     }
-    if (
-      SyncData.encrypt &&
-      SyncData.encryptionKey &&
-      typeof data === "string"
-    ) {
-      data = CryptoJS.AES.decrypt(data, SyncData.encryptionKey).toString(
-        CryptoJS.enc.Utf8
-      );
+    if (SyncData.encrypt && SyncData.encryptionKey && typeof data === "string") {
+      data = CryptoJS.AES.decrypt(data, SyncData.encryptionKey).toString(CryptoJS.enc.Utf8);
     }
     let returnVal = JSON.parse(data);
     while (typeof returnVal === "string") {
@@ -386,9 +355,7 @@ export class SyncData {
     if (newResources.length == 0) {
       return;
     }
-    const resourceTypes = [
-      ...new Set(newResources.map((resource) => resource.resourceType)),
-    ];
+    const resourceTypes = [...new Set(newResources.map((resource) => resource.resourceType))];
     if (SyncData.debug) {
       console.log(
         `Saving ${synced ? "synced " : ""}resources of type${
@@ -428,10 +395,7 @@ export class SyncData {
    * If the resource is not found, this function will do nothing.
    * @returns A promise that resolves when the delete operation has completed.
    */
-  static async deleteResource(
-    resourceType: string,
-    resourceId: string
-  ): Promise<void> {
+  static async deleteResource(resourceType: string, resourceId: string): Promise<void> {
     if (SyncData.debug) {
       console.log(`Deleting ${resourceType} with resourceId ${resourceId}`);
     }
@@ -486,17 +450,15 @@ export class SyncData {
     if (!SyncData.mapToCommand) {
       throw new Error("Map to command function is not set");
     }
-    const data = (await SyncData.loadFromStorage(
-      `${SyncData.storagePrefix}-state`
-    )) as StoredState;
+    const data = (await SyncData.loadFromStorage(`${SyncData.storagePrefix}-state`)) as StoredState;
     SyncData.queue = [];
     SyncData.errorQueue = [];
     const queues = { queue: SyncData.queue, errorQueue: SyncData.errorQueue };
     for (const [queueName, queueArray] of Object.entries(queues)) {
       for (const savedCommand of queueName == "queue"
-        ? data.queue
+        ? data?.queue || []
         : queueName == "errorQueue"
-        ? data.errorQueue
+        ? data?.errorQueue || []
         : []) {
         const commandInstance = SyncData.mapToCommand!(
           savedCommand.commandName,
@@ -513,9 +475,7 @@ export class SyncData {
           commandInstance.commandId = savedCommand.commandId;
         }
         if (savedCommand.commandCreationDate) {
-          commandInstance.commandCreationDate = new Date(
-            savedCommand.commandCreationDate
-          );
+          commandInstance.commandCreationDate = new Date(savedCommand.commandCreationDate);
         }
         queueArray.push(commandInstance);
       }
@@ -534,9 +494,7 @@ export class SyncData {
     type: string,
     resourceId: string
   ): Promise<ISyncResource | undefined> {
-    const data = (await SyncData.loadFromStorage(
-      `${SyncData.storagePrefix}-data`
-    )) as StoredData;
+    const data = (await SyncData.loadFromStorage(`${SyncData.storagePrefix}-data`)) as StoredData;
     if (!data[type]) {
       return undefined;
     }
